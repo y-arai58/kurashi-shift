@@ -106,6 +106,20 @@ export function compareProfiles(
 ) {
   const current = candidateResults(evaluatePrograms(programs, before, today));
   const next = candidateResults(evaluatePrograms(programs, after, today));
+  // Missing municipal data is not evidence of losing benefits or having none.
+  const comparable =
+    before.residence === 'fukuoka' && after.residence === 'fukuoka';
+  if (!comparable)
+    return {
+      comparable: false,
+      current,
+      next,
+      recheck: current,
+      added: [],
+      removed: [],
+      changed: [],
+      unchanged: [],
+    };
   const currentById = new Map(
     current.map((result) => [result.program.id, result]),
   );
@@ -116,6 +130,8 @@ export function compareProfiles(
       .sort()
       .join(',');
   return {
+    comparable: true,
+    recheck: [],
     current,
     next,
     added: next.filter((result) => !currentById.has(result.program.id)),

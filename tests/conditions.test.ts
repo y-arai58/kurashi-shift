@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Profile } from '../lib/domain.ts';
 import { supportPrograms } from '../lib/programs.ts';
-import { evaluateProgram } from '../lib/evaluate.ts';
+import { evaluateProgram, compareProfiles } from '../lib/evaluate.ts';
 import { initialQuestionsFor, questionsFor } from '../lib/questions.ts';
 import {
   parseBasicProfile,
@@ -15,6 +15,59 @@ import {
   requiredHousingArea,
   schoolIncomeComparison,
 } from '../lib/official-guidance.ts';
+
+await test('outside-city scenario preserves the original profile and clears destination assumptions', () => {
+  const before: Profile = {
+    residence: 'fukuoka',
+    ageBand: '30-39',
+    household: 'with-children',
+    childAgeEligible: 'yes',
+    housingPlan: 'buying',
+    housingSpace: 'yes',
+    schoolType: 'city',
+  };
+  const snapshot = { ...before };
+  const after = scenarioProfile(before, 'outside');
+  assert.equal(after.residence, 'other');
+  assert.equal(after.moveWithinCity, 'no');
+  assert.equal(after.housingSpace, undefined);
+  assert.equal(after.housingPlan, undefined);
+  assert.equal(after.schoolType, undefined);
+  assert.equal(after.childAgeEligible, 'yes');
+  assert.deepEqual(before, snapshot);
+  const diff = compareProfiles(supportPrograms, before, after, '2026-09-07');
+  assert.equal(diff.comparable, false);
+  assert.ok(diff.recheck.length > 0);
+  assert.deepEqual(diff.recheck, diff.current);
+  assert.deepEqual(diff.removed, []);
+  assert.deepEqual(diff.added, []);
+  assert.deepEqual(diff.unchanged, []);
+  const returnToCity = compareProfiles(
+    supportPrograms,
+    before,
+    scenarioProfile(before, 'rent'),
+    '2026-09-07',
+  );
+  assert.equal(returnToCity.comparable, true);
+  assert.deepEqual(returnToCity.recheck, []);
+});
+
+await test('unknown municipal coverage cannot produce false benefit gains or losses', () => {
+  const unknown: Profile = {
+    residence: 'other',
+    ageBand: '30-39',
+    household: 'single',
+  };
+  const diff = compareProfiles(
+    supportPrograms,
+    unknown,
+    { ...unknown, residence: 'fukuoka' },
+    '2026-09-07',
+  );
+  assert.equal(diff.comparable, false);
+  assert.deepEqual(diff.added, []);
+  assert.deepEqual(diff.removed, []);
+});
 
 const housing: Profile = {
   residence: 'fukuoka',

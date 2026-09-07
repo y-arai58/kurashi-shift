@@ -109,7 +109,7 @@ export function updateProfile(
   return next;
 }
 
-export type Scenario = 'baby' | 'rent' | 'buy';
+export type Scenario = 'baby' | 'rent' | 'buy' | 'outside';
 const dwellingFields = [
   'housingContract',
   'housingSpace',
@@ -125,8 +125,25 @@ export const scenarios: { id: Scenario; label: string; note: string }[] = [
   { id: 'baby', label: '子どもが生まれたら', note: '子どもが1人増えた場合' },
   { id: 'rent', label: '市内で賃貸に引越したら', note: '福岡市内での住み替え' },
   { id: 'buy', label: '市内で家を買ったら', note: '購入した住宅への引越し' },
+  {
+    id: 'outside',
+    label: '福岡市外へ引越したら',
+    note: '転居に伴う確認事項を見る・転居先の制度は未収集',
+  },
 ];
 export function scenarioProfile(profile: Profile, scenario: Scenario): Profile {
+  if (scenario === 'outside') {
+    const next: Profile = {
+      ...profile,
+      residence: 'other',
+      moveWithinCity: 'no',
+    };
+    for (const field of dwellingFields) delete next[field];
+    delete next.housingPlan;
+    delete next.movingBenefit;
+    delete next.schoolType;
+    return next;
+  }
   if (scenario === 'baby')
     return {
       ...profile,

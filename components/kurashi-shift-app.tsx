@@ -753,7 +753,7 @@ function ResultsView({
             もし、暮らしが変わったら？
           </h2>
           <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">
-            出産や福岡市内の住み替えを試して、今との違いを見られます。現在の回答はそのまま残ります。
+            出産、市内の住み替え、市外への転居を試せます。市外の場合は、転居に伴う確認事項を表示します。現在の回答はそのまま残ります。
           </p>
           <Button
             onClick={() => go('compare')}
@@ -1102,14 +1102,16 @@ function ComparisonView({
       <div className="mt-7 bg-secondary p-5 text-sm leading-7">
         <p className="font-bold">変える条件</p>
         <p>
-          {scenario === 'baby'
-            ? '高校生年代までの子どもがいる状態に変更します。新しく生まれる子どもの保険加入・医療費助成の例外は未確認として扱います。既にいる子どもの就学状況は引き継ぎます。'
-            : '2026年4月1日以降の福岡市内の転居あり・転居先は' +
-              (scenario === 'rent' ? '賃貸住宅' : '購入した住宅') +
-              'に変更します。住宅ごとの確認回答はリセットし、それ以外の回答は引き継ぎます。'}
+          {scenario === 'outside'
+            ? '暮らしの場所を福岡市以外に変更します。転居先の住宅・学校の条件は未確認に戻します。現在のプロフィールは変更しません。'
+            : scenario === 'baby'
+              ? '高校生年代までの子どもがいる状態に変更します。新しく生まれる子どもの保険加入・医療費助成の例外は未確認として扱います。既にいる子どもの就学状況は引き継ぎます。'
+              : '2026年4月1日以降の福岡市内の転居あり・転居先は' +
+                (scenario === 'rent' ? '賃貸住宅' : '購入した住宅') +
+                'に変更します。住宅ごとの確認回答はリセットし、それ以外の回答は引き継ぎます。'}
         </p>
         <p className="mt-2 text-muted-foreground">
-          比較するのは候補件数と主な条件です。第何子かの数え方や住宅ごとの要件は、画面上部の「条件を調べる」で確認できます。市外への引越し比較は対象外です。
+          比較するのは掲載済み制度の候補件数と主な条件です。市外の制度は未収集のため、転居先の件数・金額の増減は判定しません。制度の要件は、画面上部の「条件を調べる」で確認できます。
         </p>
       </div>
       <div
@@ -1128,73 +1130,119 @@ function ComparisonView({
         <div>
           <p className="text-sm font-bold">{chosen.label}</p>
           <p className="mt-2 text-4xl font-black">
-            {comparison.next.length}
-            <span className="ml-1 text-base">件</span>
+            {comparison.comparable ? (
+              comparison.next.length
+            ) : (
+              <span className="text-2xl">未判定</span>
+            )}
+            {comparison.comparable && (
+              <span className="ml-1 text-base">件</span>
+            )}
           </p>
         </div>
       </div>
-      <div className="space-y-9">
-        {[
-          { title: '新しく候補になる', list: comparison.added, mark: '＋' },
-          { title: '候補から外れる', list: comparison.removed, mark: '−' },
-          {
-            title: '確認できた条件が変わる',
-            list: comparison.changed,
-            mark: '↗',
-          },
-        ].map((group) => (
-          <section key={group.title}>
-            <h2 className="text-xl font-black">
-              {group.mark} {group.title}
-              <span className="ml-3 text-base font-medium">
-                {group.list.length}件
-              </span>
-            </h2>
-            {group.list.length ? (
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                {group.list.map((result) => (
-                  <ResultCard
-                    key={result.program.id}
-                    result={
-                      group.mark === '−'
-                        ? evaluateProgram(result.program, next, today)
-                        : result
-                    }
-                    today={today}
-                    onOpen={() => go('comparison-detail', result.program.id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-muted-foreground">
-                この変化による該当はありません。
-              </p>
-            )}
-          </section>
-        ))}
-      </div>
-      <details className="mt-9 border-y border-border py-4">
-        <summary className="cursor-pointer py-3 font-semibold">
-          候補・確認条件が同じ制度（{comparison.unchanged.length}件）
-        </summary>
-        <div className="mt-3 space-y-2">
-          {comparison.unchanged.map((result) => (
-            <button
-              key={result.program.id}
-              onClick={() => go('comparison-detail', result.program.id)}
-              className="flex min-h-12 w-full items-center justify-between gap-4 border-b border-border py-3 text-left text-base"
+      {!comparison.comparable && (
+        <section className="space-y-5" aria-label="市外への転居で確認すること">
+          <h2 className="text-2xl font-black">
+            転居先の支援は、まだ調べられていません
+          </h2>
+          <p className="leading-8">
+            支援が0件になる、今の給付がすべてなくなるという意味ではありません。現在の支援候補について、転出後の扱い・申請先・手続きの要否を確認するためのリストです。転居先独自の支援や移住支援は、この結果に含まれていません。
+          </p>
+          <h3 className="text-xl font-bold">
+            今の候補から、転居に伴う確認リスト
+          </h3>
+          {comparison.recheck.map(({ program }) => (
+            <article
+              key={program.id}
+              className="border border-border bg-white p-5"
             >
-              {result.program.officialName}
-              <ChevronRight className="size-4 shrink-0" />
-            </button>
+              <h4 className="text-lg font-bold">{program.officialName}</h4>
+              <p className="mt-2 leading-7">
+                転居後の対象条件と手続きを確認する必要があります。転居先での受給可否は未判定です。
+              </p>
+              <Button
+                variant="outline"
+                className="mt-4 min-h-11 rounded-none"
+                onClick={() => go('guide', program.id)}
+              >
+                現在の制度の条件・手続きを調べる
+              </Button>
+            </article>
           ))}
-          {!comparison.unchanged.length && (
-            <p className="py-2 text-sm text-muted-foreground">
-              該当する制度はありません。
+          {!comparison.recheck.length && (
+            <p className="leading-7">
+              現在の回答では掲載制度の候補がありません。転居先の支援の有無を示すものではありません。
             </p>
           )}
+        </section>
+      )}
+      {comparison.comparable && (
+        <div className="space-y-9">
+          {[
+            { title: '新しく候補になる', list: comparison.added, mark: '＋' },
+            { title: '候補から外れる', list: comparison.removed, mark: '−' },
+            {
+              title: '確認できた条件が変わる',
+              list: comparison.changed,
+              mark: '↗',
+            },
+          ].map((group) => (
+            <section key={group.title}>
+              <h2 className="text-xl font-black">
+                {group.mark} {group.title}
+                <span className="ml-3 text-base font-medium">
+                  {group.list.length}件
+                </span>
+              </h2>
+              {group.list.length ? (
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  {group.list.map((result) => (
+                    <ResultCard
+                      key={result.program.id}
+                      result={
+                        group.mark === '−'
+                          ? evaluateProgram(result.program, next, today)
+                          : result
+                      }
+                      today={today}
+                      onOpen={() => go('comparison-detail', result.program.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  この変化による該当はありません。
+                </p>
+              )}
+            </section>
+          ))}
         </div>
-      </details>
+      )}
+      {comparison.comparable && (
+        <details className="mt-9 border-y border-border py-4">
+          <summary className="cursor-pointer py-3 font-semibold">
+            候補・確認条件が同じ制度（{comparison.unchanged.length}件）
+          </summary>
+          <div className="mt-3 space-y-2">
+            {comparison.unchanged.map((result) => (
+              <button
+                key={result.program.id}
+                onClick={() => go('comparison-detail', result.program.id)}
+                className="flex min-h-12 w-full items-center justify-between gap-4 border-b border-border py-3 text-left text-base"
+              >
+                {result.program.officialName}
+                <ChevronRight className="size-4 shrink-0" />
+              </button>
+            ))}
+            {!comparison.unchanged.length && (
+              <p className="py-2 text-sm text-muted-foreground">
+                該当する制度はありません。
+              </p>
+            )}
+          </div>
+        </details>
+      )}
       <Button onClick={() => go('results')} className={primaryButton + ' mt-8'}>
         今の診断結果に戻る
       </Button>
