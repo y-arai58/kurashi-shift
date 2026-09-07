@@ -38,10 +38,16 @@ await test('outside-city scenario preserves the original profile and clears dest
   const diff = compareProfiles(supportPrograms, before, after, '2026-09-07');
   assert.equal(diff.comparable, false);
   assert.ok(diff.recheck.length > 0);
-  assert.deepEqual(diff.recheck, diff.current);
+  assert.deepEqual(
+    diff.recheck,
+    diff.current.filter((r) => r.program.scope !== 'national'),
+  );
   assert.deepEqual(diff.removed, []);
   assert.deepEqual(diff.added, []);
-  assert.deepEqual(diff.unchanged, []);
+  assert.deepEqual(
+    diff.unchanged.map((r) => r.program.id),
+    ['child-allowance'],
+  );
   const returnToCity = compareProfiles(
     supportPrograms,
     before,
@@ -287,13 +293,12 @@ await test('every detailed condition links to searchable explanation and an appl
     assert.ok(fields.includes(field as keyof Profile));
 });
 await test('initial questions are relevant, optional, and accepted by WebMCP validation', () => {
-  assert.deepEqual(
+  assert.ok(
     initialQuestionsFor({
       residence: 'fukuoka',
       household: 'couple',
       ageBand: '30-39',
-    }),
-    [],
+    }).some((q) => q.field === 'incomeReduced'),
   );
   assert.ok(
     initialQuestionsFor(housing).some(

@@ -200,7 +200,7 @@ function GuidanceBody({
       {entry.id === 'moving-area' && <AreaCalculator onAnswer={onAnswer} />}
       {entry.id === 'school-income' && <IncomeCalculator />}
       <p className="border-t border-border pt-3 text-sm text-muted-foreground">
-        福岡市公式情報の要約・最終確認{' '}
+        公式情報の要約・最終確認{' '}
         <time dateTime={entry.verifiedOn}>{entry.verifiedOn}</time>　
         <a
           className="inline-flex items-center gap-1 underline underline-offset-4"

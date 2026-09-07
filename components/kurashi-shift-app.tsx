@@ -56,6 +56,12 @@ import {
   initialQuestionsFor,
 } from '@/lib/questions';
 import { ConditionGuide, FieldGuidance } from '@/components/condition-guide';
+import { RegionDirectory } from '@/components/region-directory';
+import {
+  nationalProfileSchema,
+  nationalInitialQuestions,
+} from '@/lib/national-profile';
+import regions from '@/data/collection/regions-latest.json';
 
 type Page =
   | 'home'
@@ -172,7 +178,9 @@ function Shell({
             条件を調べる
           </Button>
           <div className="hidden text-right text-xs text-muted-foreground sm:block">
-            <p className="text-sm font-bold text-foreground">福岡市版</p>
+            <p className="text-sm font-bold text-foreground">
+              全国制度＋地域情報
+            </p>
             <p>公式情報 {supportPrograms.length}制度</p>
           </div>
         </div>
@@ -208,7 +216,7 @@ function Shell({
           <div>
             <p className="font-bold text-foreground">くらしシフト</p>
             <p className="mt-2">
-              福岡市の公式情報をもとにした民間の支援案内です。行政の審査・受給決定を行うものではありません。
+              国・公的機関・福岡市の公式情報をもとにした民間の支援案内です。行政の審査・受給決定を行うものではありません。
             </p>
           </div>
           <div>
@@ -216,7 +224,7 @@ function Shell({
               入力内容はこのページを開いている間だけ使用します。アプリのサーバーやブラウザーの保存領域には保存しません。再読み込みで消去されます。
             </p>
             <p className="mt-2">
-              現在の掲載範囲：子育て・教育・市内住み替え・高齢者の交通費に関する5制度。
+              診断対象：全国制度10件＋福岡市独自4件。47都道府県の地域情報入口を収集済み。全制度を網羅していません。
             </p>
           </div>
         </div>
@@ -316,7 +324,7 @@ function HomeView({ go, hasProfile }: { go: Navigate; hasProfile: boolean }) {
       <div>
         <p className="mb-6 flex items-center gap-2 text-sm font-bold text-[#28637c]">
           <MapPin className="size-4" />
-          福岡市の暮らしと支援
+          あなたの暮らしと公的支援
         </p>
         <h1
           tabIndex={-1}
@@ -346,7 +354,7 @@ function HomeView({ go, hasProfile }: { go: Navigate; hasProfile: boolean }) {
           登録不要・入力内容は保存しません
         </p>
         <p className="mt-5 text-sm leading-6 text-muted-foreground">
-          現在は福岡市の5制度に対応しています。
+          全国制度10件と福岡市独自4件を診断。地域独自の支援は収集状況を分けて案内します。
         </p>
       </div>
       <div className="soft-grid border border-border p-4 sm:p-7">
@@ -404,7 +412,7 @@ function ProfileView({
   return (
     <>
       <Heading eyebrow="01 / PROFILE" title="まず、暮らしの基本情報から。">
-        お住まい・年齢・世帯は必須です。家族に関係する共通項目だけ続けて表示します。追加項目はわからなくても進めます。
+        お住まい・年齢・世帯は必須です。全国制度に関係する仕事・家計・家族の情報も確認します。追加項目はわからない・答えないまま進めます。
       </Heading>
       <form
         onSubmit={(event) => {
@@ -437,6 +445,14 @@ function ProfileView({
               set({ household: value as Profile['household'] })
             }
           />
+          {draft.residence === 'other' && (
+            <RegionDirectory
+              compact
+              title="お住まいの都道府県（任意）"
+              value={draft.prefecture}
+              onChange={(prefecture) => set({ prefecture })}
+            />
+          )}
           {initialQuestions.map((question, index) => (
             <div key={question.field}>
               <Choices
@@ -599,11 +615,9 @@ function ResultsView({
       <Heading
         eyebrow="02 / YOUR RESULTS"
         title={
-          profile.residence === 'other'
-            ? 'お住まいの地域は、まだ未対応です。'
-            : candidates.length
-              ? 'あなたの支援候補は、' + candidates.length + '件です。'
-              : '今の掲載範囲では、候補が見つかりませんでした。'
+          candidates.length
+            ? 'あなたの支援候補は、' + candidates.length + '件です。'
+            : '今の掲載範囲では、候補が見つかりませんでした。'
         }
       >
         <ProfileSummary profile={profile} />
@@ -616,7 +630,13 @@ function ResultsView({
           基本条件を変更
         </Button>
       </Heading>
-      {profile.residence === 'fukuoka' && (
+      <p className="mt-4 text-sm leading-7 text-muted-foreground">
+        {profile.residence === 'fukuoka'
+          ? '全国制度10件＋福岡市独自4件'
+          : '全国制度10件'}
+        のうち、回答に関係する候補です。初回の任意項目が未回答の場合、まだ表示されない全国制度があります。自治体独自制度を網羅していません。
+      </p>
+      {
         <div className="mt-7 grid grid-cols-2 border border-border bg-secondary p-5 text-center sm:max-w-lg">
           <div className="border-r border-border">
             <p className="text-3xl font-black">
@@ -633,7 +653,7 @@ function ResultsView({
             <p className="mt-2 text-sm">確認が必要</p>
           </div>
         </div>
-      )}
+      }
       {questions.length > 0 && (
         <div className="my-8 flex flex-col justify-between gap-5 border-l-4 border-primary bg-secondary p-6 sm:flex-row sm:items-center">
           <div>
@@ -705,8 +725,8 @@ function ResultsView({
           </h2>
           <p className="mt-3 leading-7 text-muted-foreground">
             {profile.residence === 'other'
-              ? '福岡市以外の制度は診断していません。お住まいの自治体の公式サイトや相談窓口でご確認ください。'
-              : '現在は5制度から診断しています。掲載していない支援や、個別事情によって利用できる制度もあります。'}
+              ? '全国制度のうち回答に関係する候補を診断しています。基本情報の未回答項目を埋めると、新しい候補が見つかる場合があります。自治体独自の制度は下の情報入口から確認できます。'
+              : '掲載制度のうち回答に関係する候補を診断しています。未回答の基本情報や、未掲載の支援、個別事情によって利用できる制度もあります。'}
           </p>
           <Button
             variant="outline"
@@ -743,6 +763,9 @@ function ResultsView({
             ))}
           </div>
         </details>
+      )}
+      {(profile.residence === 'other' || profile.plannedMove === 'yes') && (
+        <RegionDirectory value={profile.prefecture} />
       )}
       {profile.residence === 'fukuoka' && (
         <section className="mt-12 border-t-[3px] border-primary pt-7">
@@ -863,7 +886,7 @@ function answerLabel(field: keyof Profile | undefined, profile: Profile) {
     return 'はじめての出産を控えている';
   const value = profile[field];
   if (!value) return '未回答';
-  return followupQuestions
+  return [...followupQuestions, ...nationalInitialQuestions]
     .find((question) => question.field === field)
     ?.options.find((option) => option.value === value)?.label;
 }
@@ -981,6 +1004,24 @@ function DetailView({
               </Button>
             )}
           </section>
+          {personalized && program.id === 'child-allowance' && (
+            <p className="mt-5 bg-secondary p-5 leading-7">
+              申請先の目安：
+              {profile.employment === 'civil'
+                ? '公務員のため勤務先へ確認してください。'
+                : '原則はお住まいの市区町村です。公務員は勤務先になります。'}
+            </p>
+          )}
+          {personalized && program.id === 'free-childcare' && (
+            <p className="mt-5 bg-secondary p-5 leading-7">
+              住民税区分：
+              {profile.taxExempt === 'yes'
+                ? '非課税と回答しています。0〜2歳の支援も確認してください。'
+                : profile.taxExempt === 'no'
+                  ? '非課税ではないと回答しています。3〜5歳や多子世帯の軽減は別に確認できます。'
+                  : '未確認です。0〜2歳の無償化では住民税区分も確認します。'}
+            </p>
+          )}
           <ConditionGuide
             key={program.id}
             programId={program.id}
@@ -1053,7 +1094,7 @@ function DetailView({
             rel="noopener noreferrer"
             className="mt-6 flex min-h-12 items-center justify-center gap-2 bg-black p-3 text-sm font-bold text-white hover:bg-[#205a74]"
           >
-            福岡市公式ページへ
+            制度の公式ページへ
             <ExternalLink className="size-4" />
             <span className="sr-only">（新しいタブで開きます）</span>
           </a>
@@ -1144,11 +1185,30 @@ function ComparisonView({
       {!comparison.comparable && (
         <section className="space-y-5" aria-label="市外への転居で確認すること">
           <h2 className="text-2xl font-black">
-            転居先の支援は、まだ調べられていません
+            全国制度の候補と、地域独自の未確認情報
           </h2>
           <p className="leading-8">
-            支援が0件になる、今の給付がすべてなくなるという意味ではありません。現在の支援候補について、転出後の扱い・申請先・手続きの要否を確認するためのリストです。転居先独自の支援や移住支援は、この結果に含まれていません。
+            全国制度の候補は下に表示します。転居先独自の制度を未確認のため、全体の増減は計算しません。全国制度も申請先・手続きの変更が必要な場合があります。
           </p>
+          <h3 className="text-xl font-bold">
+            転居後も確認できる全国制度の候補
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {comparison.next.map((result) => (
+              <ResultCard
+                key={result.program.id}
+                result={result}
+                today={today}
+                onOpen={() => go('comparison-detail', result.program.id)}
+              />
+            ))}
+          </div>
+          {!comparison.next.length && (
+            <p>
+              現在の回答では全国制度の候補はありません。未掲載の制度や、基本情報の未回答による候補は含みません。
+            </p>
+          )}
+          <RegionDirectory title="転居先の都道府県・市区町村を調べる" />
           <h3 className="text-xl font-bold">
             今の候補から、転居に伴う確認リスト
           </h3>
@@ -1172,7 +1232,7 @@ function ComparisonView({
           ))}
           {!comparison.recheck.length && (
             <p className="leading-7">
-              現在の回答では掲載制度の候補がありません。転居先の支援の有無を示すものではありません。
+              現在の候補に福岡市独自制度はありません。転居先の支援の有無を示すものではありません。
             </p>
           )}
         </section>
@@ -1341,6 +1401,11 @@ export function KurashiShiftApp() {
                 enum: ['yes', 'no', 'unknown'],
               },
               age70Plus: { type: 'string', enum: ['yes', 'no', 'unknown'] },
+              ...nationalProfileSchema,
+              prefecture: {
+                type: 'string',
+                enum: ['unknown', ...regions.regions.map((r) => r.id)],
+              },
             },
             required: ['residence', 'ageBand', 'household'],
             additionalProperties: false,
@@ -1358,8 +1423,8 @@ export function KurashiShiftApp() {
               supportCount: matched.length,
               coverage:
                 next.residence === 'fukuoka'
-                  ? 'fukuoka-five-programs'
-                  : 'unsupported',
+                  ? 'national-and-fukuoka-partial'
+                  : 'national-only-local-unreviewed',
               needsMoreInformation: matched.some(
                 (item) => item.status === 'needs-info',
               ),
@@ -1403,6 +1468,7 @@ export function KurashiShiftApp() {
             programId={getProgram(effectiveRoute.id)?.id}
             onOpen={(id) => go(complete(profile) ? 'questions' : 'detail', id)}
           />
+          {!effectiveRoute.id && <RegionDirectory />}
         </>
       )}
       {effectiveRoute.page === 'profile' && (

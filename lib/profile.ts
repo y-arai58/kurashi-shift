@@ -1,8 +1,14 @@
 import type { Profile } from './domain.ts';
+import { nationalProfileSchema } from './national-profile.ts';
+import regions from '../data/collection/regions-latest.json' with { type: 'json' };
 
 export const residenceOptions = [
-  { value: 'fukuoka', label: '福岡市', note: '現在の掲載地域' },
-  { value: 'other', label: '福岡市以外', note: '市外の制度は未掲載です' },
+  { value: 'fukuoka', label: '福岡市', note: '全国制度＋福岡市独自制度' },
+  {
+    value: 'other',
+    label: '福岡市以外（日本国内）',
+    note: '全国制度を診断・独自制度は情報入口を案内',
+  },
 ] as const;
 export const ageOptions = [
   { value: 'under18', label: '18歳未満' },
@@ -51,6 +57,22 @@ export function updateProfile(
   patch: Partial<Profile>,
 ): Profile {
   const next = { ...profile, ...patch };
+  if (patch.residence !== undefined && patch.residence !== profile.residence)
+    delete next.prefecture;
+  if (
+    patch.higherEducation !== undefined &&
+    patch.higherEducation !== profile.higherEducation
+  )
+    delete next.manyDependents;
+  if (
+    patch.pregnancyBirth !== undefined &&
+    patch.pregnancyBirth !== profile.pregnancyBirth
+  )
+    delete next.healthCoverage;
+  if (patch.household !== undefined && patch.household !== profile.household) {
+    delete next.preschool;
+    delete next.manyDependents;
+  }
   if (patch.household !== undefined && patch.household !== profile.household) {
     for (const field of [
       'childAgeEligible',
@@ -137,6 +159,8 @@ export function scenarioProfile(profile: Profile, scenario: Scenario): Profile {
       ...profile,
       residence: 'other',
       moveWithinCity: 'no',
+      plannedMove: 'yes',
+      prefecture: undefined,
     };
     for (const field of dwellingFields) delete next[field];
     delete next.housingPlan;
@@ -152,6 +176,10 @@ export function scenarioProfile(profile: Profile, scenario: Scenario): Profile {
           ? 'single-parent'
           : 'with-children',
       childAgeEligible: 'yes',
+      pregnancyBirth: 'yes',
+      preschool: 'yes',
+      healthCoverage: undefined,
+      manyDependents: undefined,
       childHealthInsurance: undefined,
       medicalExclusions: undefined,
       housingSpace: undefined,
@@ -165,6 +193,7 @@ export function scenarioProfile(profile: Profile, scenario: Scenario): Profile {
   const next: Profile = {
     ...profile,
     moveWithinCity: 'yes',
+    plannedMove: 'yes',
     housingPlan: scenario === 'rent' ? 'renting' : 'buying',
     movingBenefit: scenario === 'rent' ? 'rent' : 'purchase',
   };
@@ -187,6 +216,8 @@ export function parseBasicProfile(input: unknown): Profile {
           'schoolStage',
           'publicAssistance',
           'age70Plus',
+          'prefecture',
+          ...Object.keys(nationalProfileSchema),
         ].includes(key),
     ) ||
     !residenceOptions.some((option) => option.value === value.residence) ||
@@ -212,12 +243,32 @@ export function parseBasicProfile(input: unknown): Profile {
     )
   )
     throw new Error('就学状況を確認してください。');
+  for (const [field, schema] of Object.entries(nationalProfileSchema)) {
+    if (
+      value[field] !== undefined &&
+      !schema.enum.some((option) => option === value[field])
+    )
+      throw new Error('追加の基本情報を確認してください。');
+  }
+  if (
+    value.prefecture !== undefined &&
+    value.prefecture !== 'unknown' &&
+    !regions.regions.some((r) => r.id === value.prefecture)
+  )
+    throw new Error('都道府県を確認してください。');
   return {
     residence: value.residence as Profile['residence'],
     ageBand: value.ageBand as Profile['ageBand'],
     household: value.household as Profile['household'],
     ...Object.fromEntries(
-      ['childAgeEligible', 'schoolStage', 'publicAssistance', 'age70Plus']
+      [
+        'childAgeEligible',
+        'schoolStage',
+        'publicAssistance',
+        'age70Plus',
+        'prefecture',
+        ...Object.keys(nationalProfileSchema),
+      ]
         .filter((field) => value[field] !== undefined)
         .map((field) => [field, value[field]]),
     ),

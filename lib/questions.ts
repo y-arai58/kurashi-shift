@@ -1,5 +1,6 @@
 import type { Profile, SupportProgram } from './domain.ts';
 import { hasChildren } from './profile.ts';
+import { nationalInitialQuestions } from './national-profile.ts';
 
 const yesNo = [
   { value: 'yes', label: 'はい' },
@@ -289,17 +290,28 @@ export const initialQuestionFields: (keyof Profile)[] = [
   'age70Plus',
 ];
 export function initialQuestionsFor(profile: Profile) {
-  if (profile.residence !== 'fukuoka' || !profile.household) return [];
-  return initialQuestionFields
+  if (!profile.residence || !profile.household) return [];
+  const local = initialQuestionFields
     .map((field) =>
       followupQuestions.find((question) => question.field === field)!,
     )
-    .filter((question) => question.show(profile));
+    .filter(
+      (question) =>
+        question.show(profile) &&
+        (profile.residence === 'fukuoka' ||
+          question.field === 'childAgeEligible'),
+    );
+  return [...local, ...nationalInitialQuestions.filter((q) => q.show(profile))];
 }
 
 export function questionsFor(profile: Profile, program?: SupportProgram) {
-  if (profile.residence !== 'fukuoka') return [];
-  return followupQuestions.filter(
+  if (!profile.residence) return [];
+  return [
+    ...followupQuestions.filter(
+      (q) => profile.residence === 'fukuoka' || q.field === 'childAgeEligible',
+    ),
+    ...nationalInitialQuestions,
+  ].filter(
     (question) =>
       question.show(profile) &&
       (!program ||

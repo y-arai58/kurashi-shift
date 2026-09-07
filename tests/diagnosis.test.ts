@@ -78,14 +78,24 @@ await test('birth, school, and moving are independent conditions', () => {
   ]);
 });
 await test('unsupported municipality returns no misleading Fukuoka candidates or questions', () => {
-  assert.deepEqual(candidates({ ...parent, residence: 'other' }), []);
-  assert.deepEqual(questionsFor({ ...parent, residence: 'other' }), []);
+  assert.ok(
+    candidates({ ...parent, residence: 'other' }).every(
+      (r) => r.program.scope === 'national',
+    ),
+  );
+  assert.ok(
+    !questionsFor({ ...parent, residence: 'other' }).some(
+      (q) => q.field === 'moveWithinCity',
+    ),
+  );
 });
 await test('pregnancy can surface moving support but never already-born child benefits', () => {
   const result = candidates({ ...parent, household: 'expecting' });
-  assert.deepEqual(
-    result.map((item) => item.program.id),
-    ['child-moving'],
+  assert.ok(result.some((r) => r.program.id === 'child-moving'));
+  assert.ok(
+    result.every(
+      (r) => !['child-allowance', 'child-medical'].includes(r.program.id),
+    ),
   );
   assert.equal(result[0].status, 'needs-info');
 });
@@ -213,8 +223,12 @@ await test('newborn simulation copies the base and leaves insurance unknown', ()
   assert.equal(next.childHealthInsurance, undefined);
   assert.equal(next.schoolStage, 'other');
   assert.deepEqual(diff.added.map((item) => item.program.id).sort(), [
+    'birth-lump-sum',
     'child-allowance',
     'child-medical',
+    'free-childcare',
+    'maternity-pay',
+    'pregnancy-support',
   ]);
   assert.equal(
     diff.next.length,
@@ -278,10 +292,20 @@ await test('all programs have specific official URLs, dated sources and next ste
     supportPrograms.length,
   );
   for (const item of supportPrograms) {
-    assert.equal(new URL(item.officialUrl).hostname, 'www.city.fukuoka.lg.jp');
-    assert.ok(new URL(item.officialUrl).pathname.endsWith('.html'));
+    assert.ok(
+      [
+        'www.city.fukuoka.lg.jp',
+        'www.cfa.go.jp',
+        'www.mhlw.go.jp',
+        'corona-support.mhlw.go.jp',
+        'www.nenkin.go.jp',
+        'www.jasso.go.jp',
+        'www.kyoukaikenpo.or.jp',
+      ].includes(new URL(item.officialUrl).hostname),
+    );
+    assert.ok(new URL(item.officialUrl).pathname.length > 1);
     assert.match(item.verifiedOn, /^\d{4}-\d{2}-\d{2}$/);
     assert.ok(item.reviewAfter >= item.verifiedOn);
-    assert.ok(item.nextSteps.length >= 2);
+    assert.ok(item.nextSteps.length >= 1);
   }
 });

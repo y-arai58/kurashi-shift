@@ -13,6 +13,26 @@ export type AidEligibility = 'likely' | 'unlikely' | 'unknown';
 export type PremiumStage = '1-7' | '8plus' | 'unknown';
 
 export type Profile = {
+  prefecture?: string;
+  pregnancyBirth?: YesNoUnknown;
+  employment?:
+    | 'employee'
+    | 'civil'
+    | 'self'
+    | 'unemployed'
+    | 'student'
+    | 'other'
+    | 'unknown';
+  healthCoverage?: 'employee' | 'dependent' | 'national' | 'other' | 'unknown';
+  incomeReduced?: YesNoUnknown;
+  rentBurden?: YesNoUnknown;
+  taxExempt?: YesNoUnknown;
+  preschool?: YesNoUnknown;
+  higherEducation?: YesNoUnknown;
+  manyDependents?: YesNoUnknown;
+  trainingInterest?: YesNoUnknown;
+  pensionBurden?: YesNoUnknown;
+  plannedMove?: YesNoUnknown;
   residence?: Residence;
   ageBand?: AgeBand;
   household?: Household;
@@ -78,6 +98,7 @@ export type Criterion = {
 };
 
 export type SupportProgram = {
+  scope?: 'national' | 'fukuoka';
   id: string;
   benefitLabel: string;
   officialName: string;

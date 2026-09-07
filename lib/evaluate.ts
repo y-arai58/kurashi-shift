@@ -77,13 +77,17 @@ export function evaluatePrograms(
   profile: Profile,
   today = todayInJapan(),
 ): Evaluation[] {
-  if (profile.residence !== 'fukuoka') return [];
+  if (!profile.residence) return [];
   const rank: Record<MatchStatus, number> = {
     eligible: 0,
     'needs-info': 1,
     future: 2,
   };
   return programs
+    .filter(
+      (program) =>
+        program.scope === 'national' || profile.residence === 'fukuoka',
+    )
     .filter((program) => program.isRelevant?.(profile) ?? true)
     .map((program) => evaluateProgram(program, profile, today))
     .sort(
@@ -114,11 +118,13 @@ export function compareProfiles(
       comparable: false,
       current,
       next,
-      recheck: current,
+      recheck: current.filter((result) => result.program.scope !== 'national'),
       added: [],
       removed: [],
       changed: [],
-      unchanged: [],
+      unchanged: next.filter((result) =>
+        current.some((previous) => previous.program.id === result.program.id),
+      ),
     };
   const currentById = new Map(
     current.map((result) => [result.program.id, result]),

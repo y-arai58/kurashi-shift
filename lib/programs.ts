@@ -1,5 +1,6 @@
 import type { Profile, SupportProgram, YesNoUnknown } from './domain.ts';
 import { assistanceRule, movingRules, schoolRules } from './detailed-rules.ts';
+import { nationalPrograms } from './national-programs.ts';
 
 const hasEligibleChild = (household?: string) =>
   household === undefined
@@ -17,7 +18,7 @@ const childAge = (p: Profile) => {
 };
 const sourceDates = { verifiedOn: '2026-09-07', reviewAfter: '2026-10-07' };
 
-export const supportPrograms: SupportProgram[] = [
+const fukuokaPrograms: SupportProgram[] = [
   {
     id: 'child-medical',
     ...sourceDates,
@@ -286,4 +287,24 @@ export const supportPrograms: SupportProgram[] = [
     lastVerified: '2026年9月7日',
     applicationStatus: '2026年9月30日まで',
   },
+];
+
+export const supportPrograms: SupportProgram[] = [
+  ...fukuokaPrograms.map((program) =>
+    program.id === 'child-allowance'
+      ? {
+          ...program,
+          scope: 'national' as const,
+          officialUrl:
+            'https://www.cfa.go.jp/policies/kokoseido/jidouteate/annai',
+          sourceUpdatedAt: '公式ページに更新日の明記なし',
+          criteria: program.criteria.filter((c) => c.key !== 'city'),
+          nextSteps: [
+            '出生・転入は原則その翌日から15日以内に市区町村へ申請します。公務員は勤務先が申請先です。',
+            '国内居住、監護・生計、別居・施設入所等の例外と第3子の数え方を確認します。',
+          ],
+        }
+      : { ...program, scope: 'fukuoka' as const },
+  ),
+  ...nationalPrograms,
 ];

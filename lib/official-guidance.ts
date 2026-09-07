@@ -1,4 +1,5 @@
 import type { Profile } from './domain.ts';
+import { nationalPrograms } from './national-programs.ts';
 
 const sources = {
   moving:
@@ -6,8 +7,7 @@ const sources = {
   school:
     'https://www.city.fukuoka.lg.jp/kyoiku-iinkai/gakkoshien/ed/syugakuenjo_r8.html',
   medical: 'https://www.city.fukuoka.lg.jp/hofuku/hokennenkin/hp/01.html',
-  allowance:
-    'https://www.city.fukuoka.lg.jp/kodomo-mirai/k-katei/child/kodomoteate.html',
+  allowance: 'https://www.cfa.go.jp/policies/kokoseido/jidouteate/annai',
   senior:
     'https://www.city.fukuoka.lg.jp/fukushi/oldage-welfare/health/00/01/1-010207_5_3_2_2-2.html',
 };
@@ -337,6 +337,21 @@ export const officialGuidance: Guidance[] = (
     },
   ] satisfies Entry[]
 ).map((entry) => ({ ...entry, verifiedOn: '2026-09-07' }));
+
+officialGuidance.push(
+  ...nationalPrograms.map((program) => ({
+    id: 'national-' + program.id,
+    programIds: [program.id],
+    title: program.officialName + 'の対象・手続き',
+    keywords: [program.category, program.benefitLabel],
+    paragraphs: [program.summary, ...program.points, ...program.nextSteps],
+    fields: program.criteria.flatMap((criterion) =>
+      criterion.field ? [criterion.field] : [],
+    ),
+    sourceUrl: program.officialUrl,
+    verifiedOn: program.verifiedOn,
+  })),
+);
 
 const normalize = (value: string) =>
   value
