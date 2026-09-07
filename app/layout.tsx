@@ -15,7 +15,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'くらしシフト｜あなたに関係する支援が見つかる',
   description:
-    '暮らしの条件から、あなたに関係がありそうな公的支援とその理由を見つける診断サービスです。',
+    '福岡市の公式情報をもとに、あなたに関係する支援と理由を診断。追加質問で条件を確認し、出産や市内の住み替えによる支援の違いも試せます。',
+  icons: { icon: '/favicon.svg' },
 };
 
 export default function RootLayout({

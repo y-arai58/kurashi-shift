@@ -1,4 +1,4 @@
-import type { SupportProgram } from './domain';
+import type { Profile, SupportProgram, YesNoUnknown } from './domain.ts';
 
 const hasEligibleChild = (household?: string) =>
   household === undefined
@@ -8,13 +8,26 @@ const hasEligibleChild = (household?: string) =>
 const livesInFukuoka = (residence?: string) =>
   residence === undefined ? undefined : residence === 'fukuoka';
 
+const answer = (value?: YesNoUnknown) =>
+  !value || value === 'unknown' ? undefined : value === 'yes';
+const childAge = (p: Profile) => {
+  if (hasEligibleChild(p.household) === false) return false;
+  return answer(p.childAgeEligible);
+};
+const sourceDates = { verifiedOn: '2026-09-07', reviewAfter: '2026-10-07' };
+
 export const supportPrograms: SupportProgram[] = [
   {
     id: 'child-medical',
+    ...sourceDates,
+    nextSteps: [
+      '対象の子どもの健康保険資格が確認できるものと、届出者の本人確認書類を用意します。',
+      '公式ページからオンライン申請、またはお住まいの区の保険年金担当課へ申請します。',
+    ],
     benefitLabel: '子どもの通院・入院費を軽減',
     officialName: '福岡市 子ども医療費助成制度',
     category: '医療・子育て',
-    amount: '通院は月500円まで／入院・薬局は自己負担なし',
+    amount: '保険診療の通院は1医療機関あたり月500円まで',
     summary:
       '福岡市内に住み、健康保険に加入している高校生世代までの子どもの保険診療分を助成する制度です。3歳未満の通院と、高校生世代までの入院・薬局は自己負担がありません。',
     criteria: [
@@ -25,19 +38,31 @@ export const supportPrograms: SupportProgram[] = [
       },
       {
         key: 'child',
+        field: 'childAgeEligible',
         label: '高校生世代までの子どもがいる',
-        evaluate: (p) => hasEligibleChild(p.household),
+        evaluate: childAge,
       },
       {
         key: 'insurance',
+        field: 'childHealthInsurance',
         label: '対象の子どもが健康保険に加入している',
         evaluate: (p) =>
           !p.childHealthInsurance || p.childHealthInsurance === 'unknown'
             ? undefined
             : p.childHealthInsurance === 'yes',
       },
+      {
+        key: 'exclusions',
+        field: 'medicalExclusions',
+        label: '生活保護や優先される医療費助成の対象ではない',
+        evaluate: (p) =>
+          answer(p.medicalExclusions) === undefined
+            ? undefined
+            : !answer(p.medicalExclusions),
+      },
     ],
     points: [
+      '3歳未満の通院、および対象年齢の入院・薬局は保険診療分の自己負担がありません。食事代・個室代などは対象外です',
       '保護者の所得制限はありません',
       '助成を受けるには子ども医療証の申請が必要です',
       '生活保護や、優先される他の医療費助成に該当する場合は扱いが異なります',
@@ -51,6 +76,11 @@ export const supportPrograms: SupportProgram[] = [
   },
   {
     id: 'child-allowance',
+    ...sourceDates,
+    nextSteps: [
+      '公式ページの支給対象・請求手続きを確認します。',
+      '出生・転入など状況に合う案内から必要書類と申請先を確認してください。',
+    ],
     benefitLabel: '高校生年代までの子育てを支援',
     officialName: '児童手当',
     category: '子育て・給付',
@@ -65,11 +95,13 @@ export const supportPrograms: SupportProgram[] = [
       },
       {
         key: 'child',
+        field: 'childAgeEligible',
         label: '高校生年代までの子どもを養育している',
-        evaluate: (p) => hasEligibleChild(p.household),
+        evaluate: childAge,
       },
     ],
     points: [
+      '対象年齢は18歳到達後の最初の3月31日まで。個別の養育状況・申請先などは公式情報で確認してください',
       '3歳未満の第1子・第2子は月15,000円です',
       '3歳〜高校生年代の第1子・第2子は月10,000円です',
       '第3子以降は年齢を問わず月30,000円です',
@@ -84,6 +116,12 @@ export const supportPrograms: SupportProgram[] = [
   },
   {
     id: 'child-moving',
+    ...sourceDates,
+    applicationDeadline: '2027-02-28',
+    nextSteps: [
+      '世帯・転居前後の住宅・校区の要件を公式ページで確認します。窓口相談は予約が必要です。',
+      '転居後に必要書類をそろえ、募集期間内かつ転居日から1年以内に申請します。予算枠に達すると早期終了します。',
+    ],
     benefitLabel: '福岡市内での住み替え費用を支援',
     officialName: '令和8年度 福岡市子育て世帯市内引越し応援事業',
     category: '住まい・引越し',
@@ -98,11 +136,13 @@ export const supportPrograms: SupportProgram[] = [
       },
       {
         key: 'child',
-        label: '18歳以下の子どもがいる、または妊娠中',
-        evaluate: (p) => hasEligibleChild(p.household),
+        field: 'childAgeEligible',
+        label: '高校生年代までの子を扶養、または妊娠中',
+        evaluate: (p) => (p.household === 'expecting' ? true : childAge(p)),
       },
       {
         key: 'move',
+        field: 'moveWithinCity',
         label: '2026年4月1日以降に福岡市内で転居する',
         evaluate: (p) =>
           !p.moveWithinCity || p.moveWithinCity === 'unknown'
@@ -111,28 +151,43 @@ export const supportPrograms: SupportProgram[] = [
       },
       {
         key: 'housing',
+        field: 'housingPlan',
         label: '住宅の購入または賃貸への住み替えを予定している',
         evaluate: (p) =>
           !p.housingPlan || p.housingPlan === 'unknown'
             ? undefined
             : ['renting', 'buying'].includes(p.housingPlan),
       },
+      {
+        key: 'housing-rules',
+        label:
+          '世帯・住宅の面積や耐震性・校区・過去の受給歴などの要件を公式窓口で確認',
+        evaluate: () => undefined,
+      },
     ],
     points: [
       '住宅取得は年20万円を最長5年、家賃は年10万円を最長5年助成します',
       '引越し費用等は対象経費の2分の1、上限15万円。多子世帯は上限20万円です',
-      '転居後の住宅、指定校区、市税滞納の有無など複数の追加要件があります',
+      '転居後の住宅、指定校区、市税滞納の有無など複数の追加要件があります。妊娠中の場合は転居日時点で母子手帳の交付が必要です',
     ],
     isRelevant: (p) =>
-      p.household === undefined || hasEligibleChild(p.household) === true,
+      p.household === undefined ||
+      p.household === 'expecting' ||
+      hasEligibleChild(p.household) === true,
     officialUrl:
       'https://www.city.fukuoka.lg.jp/jutaku-toshi/jigyochosei/life/kosodatehikkoshi.html',
     sourceUpdatedAt: '2026年8月31日',
     lastVerified: '2026年9月7日',
-    applicationStatus: '令和8年度 申請受付中',
+    applicationStatus: '2027年2月28日まで（予算到達で早期終了）',
   },
   {
     id: 'school-support',
+    ...sourceDates,
+    applicationDeadline: '2027-03-31',
+    nextSteps: [
+      '公式ページの所得・受給要件と必要書類を確認します。',
+      'オンライン、対象の通学校、教育支援課の窓口または郵送で申請します。収入減少による個別審査は教育支援課に相談してください。',
+    ],
     benefitLabel: '小・中学校で必要な費用を援助',
     officialName: '令和8年度 就学援助',
     category: '教育・学校',
@@ -142,24 +197,35 @@ export const supportPrograms: SupportProgram[] = [
     criteria: [
       {
         key: 'city',
-        label: '福岡市内の対象となる学校・居住条件に該当する',
+        label: '福岡市に住んでいる',
         evaluate: (p) => livesInFukuoka(p.residence),
       },
       {
         key: 'school',
+        field: 'schoolStage',
         label: '小学生または中学生の子どもがいる',
         evaluate: (p) =>
-          !p.schoolStage || p.schoolStage === 'unknown'
-            ? undefined
-            : p.schoolStage === 'elementary-middle',
+          p.childAgeEligible === 'no'
+            ? false
+            : !p.schoolStage || p.schoolStage === 'unknown'
+              ? undefined
+              : p.schoolStage === 'elementary-middle',
       },
       {
         key: 'income',
+        field: 'schoolAidEligibility',
         label: '非課税・児童扶養手当受給・所得基準などの要件に該当する',
         evaluate: (p) =>
           !p.schoolAidEligibility || p.schoolAidEligibility === 'unknown'
             ? undefined
-            : p.schoolAidEligibility === 'likely',
+            : p.schoolAidEligibility === 'likely'
+              ? true
+              : undefined,
+      },
+      {
+        key: 'school-rules',
+        label: '対象となる学校種別・保護者双方の要件・生活保護の扱いを確認',
+        evaluate: () => undefined,
       },
     ],
     points: [
@@ -177,6 +243,12 @@ export const supportPrograms: SupportProgram[] = [
   },
   {
     id: 'senior-transport',
+    ...sourceDates,
+    applicationDeadline: '2026-09-30',
+    nextSteps: [
+      '令和7年度の介護保険料所得段階を通知書で確認します。',
+      '公式ページで申請月の交付額と必要書類を確認し、オンライン・郵送等で申請します。乗車券の有効期限にも注意してください。',
+    ],
     benefitLabel: '外出に使える交通費を助成',
     officialName: '令和7年度 高齢者乗車券',
     category: '高齢・移動',
@@ -191,6 +263,7 @@ export const supportPrograms: SupportProgram[] = [
       },
       {
         key: 'age',
+        field: 'age70Plus',
         label: '満70歳以上である',
         evaluate: (p) => {
           if (p.ageBand === undefined) return undefined;
@@ -201,11 +274,21 @@ export const supportPrograms: SupportProgram[] = [
       },
       {
         key: 'premium',
-        label: '介護保険料所得段階区分が1〜7である',
+        field: 'premiumStage',
+        label: '令和7年度の介護保険料所得段階区分が1〜7である',
         evaluate: (p) =>
           !p.premiumStage || p.premiumStage === 'unknown'
             ? undefined
             : p.premiumStage === '1-7',
+      },
+      {
+        key: 'welfare-pass',
+        field: 'welfareTransport',
+        label: '福祉乗車券の交付対象ではない',
+        evaluate: (p) =>
+          answer(p.welfareTransport) === undefined
+            ? undefined
+            : !answer(p.welfareTransport),
       },
     ],
     points: [

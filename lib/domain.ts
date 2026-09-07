@@ -1,6 +1,11 @@
 export type Residence = 'fukuoka' | 'other';
 export type AgeBand = 'under18' | '18-29' | '30-39' | '40-64' | '65plus';
-export type Household = 'single' | 'couple' | 'with-children' | 'single-parent';
+export type Household =
+  | 'single'
+  | 'couple'
+  | 'with-children'
+  | 'single-parent'
+  | 'expecting';
 export type HousingPlan = 'renting' | 'buying' | 'none' | 'unknown';
 export type YesNoUnknown = 'yes' | 'no' | 'unknown';
 export type SchoolStage = 'elementary-middle' | 'other' | 'unknown';
@@ -18,11 +23,15 @@ export type Profile = {
   moveWithinCity?: YesNoUnknown;
   age70Plus?: YesNoUnknown;
   premiumStage?: PremiumStage;
+  childAgeEligible?: YesNoUnknown;
+  medicalExclusions?: YesNoUnknown;
+  welfareTransport?: YesNoUnknown;
 };
 
 export type Criterion = {
   key: string;
   label: string;
+  field?: keyof Profile;
   evaluate: (profile: Profile) => boolean | undefined;
 };
 
@@ -40,6 +49,10 @@ export type SupportProgram = {
   sourceUpdatedAt: string;
   lastVerified: string;
   applicationStatus: string;
+  applicationDeadline?: string;
+  verifiedOn: string;
+  reviewAfter: string;
+  nextSteps: string[];
 };
 
 export type MatchStatus = 'eligible' | 'needs-info' | 'future';
@@ -57,7 +70,7 @@ export const statusMeta: Record<
   MatchStatus,
   { label: string; shortLabel: string }
 > = {
-  eligible: { label: '対象の可能性が高い', shortLabel: '可能性 高い' },
+  eligible: { label: '確認した主な条件に一致', shortLabel: '主な条件に一致' },
   'needs-info': { label: '条件の確認が必要', shortLabel: '要確認' },
-  future: { label: '現在の条件では対象外', shortLabel: '対象外・今後の候補' },
+  future: { label: '回答した条件と一致しない', shortLabel: '条件に不一致' },
 };
