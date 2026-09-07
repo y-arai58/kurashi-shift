@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  BriefcaseBusiness,
+  BookOpen,
   Check,
   CheckCircle2,
   ChevronRight,
   CircleHelp,
   ExternalLink,
   FileCheck2,
+  Flag,
   HeartPulse,
   Home,
   Info,
@@ -18,12 +19,11 @@ import {
   PencilLine,
   ShieldCheck,
   Sparkles,
+  TrainFront,
   Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { evaluatePrograms } from '@/lib/evaluate';
-import { supportPrograms } from '@/lib/programs';
 import type {
   AgeBand,
   Evaluation,
@@ -33,11 +33,13 @@ import type {
   Residence,
 } from '@/lib/domain';
 import { statusMeta } from '@/lib/domain';
+import { evaluatePrograms } from '@/lib/evaluate';
+import { supportPrograms } from '@/lib/programs';
 
 type View = 'home' | 'profile' | 'results' | 'followup' | 'detail';
 
 const residenceOptions: { value: Residence; label: string; note: string }[] = [
-  { value: 'fukuoka', label: '福岡市', note: '現在のMVP対象地域' },
+  { value: 'fukuoka', label: '福岡市', note: '現在の対象地域' },
   { value: 'other', label: '福岡市以外', note: '対象地域は順次拡大予定' },
 ];
 
@@ -49,36 +51,37 @@ const ageOptions: { value: AgeBand; label: string }[] = [
   { value: '65plus', label: '65歳以上' },
 ];
 
-const householdOptions: {
-  value: Household;
-  label: string;
-  icon: typeof Users;
-}[] = [
-  { value: 'single', label: 'ひとり暮らし', icon: Users },
-  { value: 'couple', label: '夫婦・パートナー', icon: Users },
-  { value: 'with-children', label: '子どもがいる', icon: Home },
-  { value: 'single-parent', label: 'ひとり親世帯', icon: HeartPulse },
+const householdOptions: { value: Household; label: string }[] = [
+  { value: 'single', label: 'ひとり暮らし' },
+  { value: 'couple', label: '夫婦・パートナー' },
+  { value: 'with-children', label: '18歳以下の子どもがいる' },
+  { value: 'single-parent', label: 'ひとり親世帯' },
 ];
 
 const statusStyles: Record<MatchStatus, string> = {
-  eligible: 'bg-[#0c5972] text-white',
-  'needs-info': 'bg-[#fff0b8] text-[#6a4d00]',
-  future: 'bg-[#edf1f3] text-[#526875]',
+  eligible: 'bg-[#171717] text-white',
+  'needs-info': 'bg-[#d9eff8] text-[#17465a]',
+  future: 'bg-[#f0f0ed] text-[#666d70]',
 };
 
-function Logo({ compact = false }: { compact?: boolean }) {
+function Logo({ onHome }: { onHome: () => void }) {
   return (
     <button
-      className="flex items-center gap-2.5 text-left font-black tracking-[-0.04em]"
-      onClick={() => window.location.reload()}
+      className="flex items-center gap-3 text-left"
+      onClick={onHome}
       aria-label="ホームへ戻る"
     >
-      <span
-        className={`${compact ? 'size-8 rounded-lg' : 'size-9 rounded-xl'} grid place-items-center bg-primary text-primary-foreground shadow-[0_8px_24px_rgba(15,42,67,.18)]`}
-      >
-        <Sparkles className="size-4" aria-hidden="true" />
+      <span className="grid size-11 place-items-center border-l-2 border-black text-primary">
+        <Flag className="size-8 stroke-[1.7]" aria-hidden="true" />
       </span>
-      <span>くらしシフト</span>
+      <span>
+        <span className="block text-base font-black tracking-[-0.04em] sm:text-lg">
+          くらしシフト
+        </span>
+        <span className="block text-[9px] font-semibold tracking-[.13em] text-muted-foreground">
+          KURASHI SUPPORT NAVIGATOR
+        </span>
+      </span>
     </button>
   );
 }
@@ -88,18 +91,16 @@ function Choice<T extends string>({
   current,
   label,
   note,
-  onSelect: _onSelect,
 }: {
   value: T;
   current?: T;
   label: string;
   note?: string;
-  onSelect: (value: T) => void;
 }) {
   const selected = value === current;
   return (
     <label
-      className={`group flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border-2 px-4 py-3 transition ${selected ? 'border-primary bg-secondary shadow-[0_7px_20px_rgba(12,89,114,.08)]' : 'border-border bg-white hover:border-[#9ab7bd]'}`}
+      className={`flex min-h-16 cursor-pointer items-center gap-3 border px-4 py-3 transition ${selected ? 'border-primary bg-secondary' : 'border-[#dfe7e9] bg-white hover:border-primary'}`}
     >
       <RadioGroupItem value={value} className="size-5" />
       <span className="min-w-0 flex-1">
@@ -110,19 +111,19 @@ function Choice<T extends string>({
           </span>
         )}
       </span>
-      {selected && (
-        <CheckCircle2 className="size-5 text-primary" aria-hidden="true" />
-      )}
+      {selected && <Check className="size-5 text-primary" aria-hidden="true" />}
     </label>
   );
 }
 
 function Shell({
   view,
+  onHome,
   onBack,
   children,
 }: {
   view: View;
+  onHome: () => void;
   onBack?: () => void;
   children: React.ReactNode;
 }) {
@@ -130,30 +131,35 @@ function Shell({
   const stepIndex = Math.max(0, steps.indexOf(view));
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-30 border-b border-border/80 bg-background/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-[72px] w-full max-w-5xl items-center justify-between px-5 sm:px-8">
-          <Logo compact />
+      <header className="sticky top-0 z-30 border-b border-primary/60 bg-white/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-[84px] w-full max-w-6xl items-center justify-between px-5 sm:px-8">
+          <Logo onHome={onHome} />
           <div
-            className="hidden items-center gap-2 sm:flex"
+            className="hidden items-center gap-3 md:flex"
             aria-label="診断の進み具合"
           >
             {steps.map((step, index) => (
               <span
                 key={step}
-                className={`h-1.5 rounded-full transition-all ${index <= stepIndex ? 'w-8 bg-primary' : 'w-4 bg-[#cbd7d7]'}`}
-              />
+                className={`text-xs font-bold ${index <= stepIndex ? 'text-black' : 'text-[#a2aaad]'}`}
+              >
+                0{index + 1}
+              </span>
             ))}
           </div>
-          <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-muted-foreground shadow-sm">
-            福岡市・MVP版
-          </span>
+          <div className="text-right">
+            <span className="block text-xs font-black">福岡市</span>
+            <span className="block text-[10px] font-medium text-muted-foreground">
+              情報確認 2026.09.07
+            </span>
+          </div>
         </div>
       </header>
       {onBack && (
-        <div className="mx-auto w-full max-w-5xl px-5 pt-6 sm:px-8">
+        <div className="mx-auto w-full max-w-6xl px-5 pt-6 sm:px-8">
           <Button
             variant="ghost"
-            className="h-10 gap-2 px-2 text-sm font-bold text-muted-foreground"
+            className="h-10 gap-2 px-0 text-sm font-bold text-muted-foreground hover:bg-transparent hover:text-black"
             onClick={onBack}
           >
             <ArrowLeft className="size-4" /> 戻る
@@ -167,96 +173,100 @@ function Shell({
 
 function HomeView({ onStart }: { onStart: () => void }) {
   return (
-    <main className="min-h-screen overflow-hidden bg-background text-foreground">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-6 sm:px-8">
-        <Logo />
-        <span className="rounded-full border border-border bg-white px-3 py-1.5 text-xs font-bold text-muted-foreground">
-          福岡市・MVP版
-        </span>
-      </header>
-      <section className="relative mx-auto grid min-h-[calc(100vh-88px)] w-full max-w-6xl content-center gap-12 px-5 pb-16 pt-8 sm:px-8 lg:grid-cols-[1.08fr_.92fr] lg:items-center">
-        <div className="relative z-10 max-w-2xl">
-          <p className="mb-5 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-bold text-accent-foreground">
-            <MapPin className="size-4" /> 暮らしに合う支援を、あなたの条件から
+    <main className="min-h-screen bg-white text-foreground">
+      <header className="mx-auto flex h-[92px] w-full max-w-6xl items-center justify-between border-b border-primary px-5 sm:px-8">
+        <Logo onHome={() => undefined} />
+        <div className="text-right">
+          <p className="text-xs font-black">FUKUOKA CITY</p>
+          <p className="text-[10px] text-muted-foreground">
+            公式情報 5制度掲載
           </p>
-          <h1 className="text-balance text-[clamp(2.8rem,7vw,5.8rem)] font-black leading-[.98] tracking-[-0.07em]">
-            探す前に、
+        </div>
+      </header>
+      <section className="mx-auto grid min-h-[calc(100vh-92px)] w-full max-w-6xl gap-14 px-5 py-14 sm:px-8 lg:grid-cols-[1.02fr_.98fr] lg:items-center lg:py-20">
+        <div>
+          <p className="mb-6 flex items-center gap-2 text-sm font-black text-primary">
+            <MapPin className="size-4" /> 福岡市で使える支援を診断
+          </p>
+          <h1 className="text-balance text-[clamp(3rem,7vw,5.6rem)] font-black leading-[1.03] tracking-[-0.065em]">
+            あなたの暮らしに、
             <br />
-            <span className="text-primary">見つかる。</span>
+            <span className="text-primary">使える制度</span>を。
           </h1>
-          <p className="mt-7 max-w-xl text-lg font-medium leading-8 text-muted-foreground sm:text-xl">
-            いくつかの質問に答えるだけで、今のあなたに関係がありそうな公的支援と、その理由がわかります。
+          <div className="mt-7 h-[3px] w-full bg-primary" />
+          <p className="mt-7 max-w-xl text-lg font-semibold leading-8 sm:text-xl">
+            制度名から探すのではなく、あなたの条件と福岡市の制度を照らし合わせて、関係のある支援だけを案内します。
           </p>
           <div className="mt-9 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
             <Button
               onClick={onStart}
-              className="group h-14 gap-3 rounded-2xl px-6 text-base font-bold shadow-[0_14px_34px_rgba(12,65,86,.22)] hover:-translate-y-0.5"
+              className="group h-14 gap-3 rounded-none bg-black px-7 text-base font-bold text-white hover:bg-primary"
             >
-              3分で診断をはじめる{' '}
-              <ArrowRight className="size-5 transition group-hover:translate-x-1" />
+              診断をはじめる{' '}
+              <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
             </Button>
             <span className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">
               <ShieldCheck className="size-5 text-primary" />{' '}
-              登録不要・結果は端末内だけ
+              登録不要・入力は保存しません
             </span>
           </div>
-          <div className="mt-12 grid max-w-lg grid-cols-3 gap-3 border-t border-border pt-5 text-sm font-bold text-muted-foreground">
-            <span>① 基本条件</span>
-            <span>② 結果を確認</span>
-            <span>③ 精度を上げる</span>
-          </div>
         </div>
-        <div className="relative mx-auto w-full max-w-[470px] lg:mr-0">
-          <div className="absolute -inset-8 -z-10 rounded-[4rem] bg-[radial-gradient(circle_at_center,rgba(43,186,172,.22),transparent_68%)] blur-2xl" />
-          <div className="rotate-[-1.5deg] rounded-[2rem] border border-white/70 bg-white p-5 shadow-[0_30px_90px_rgba(15,42,67,.14)] sm:p-7">
-            <div className="flex items-center justify-between border-b border-border pb-5">
+
+        <div className="soft-grid border border-border p-4 sm:p-7">
+          <div className="bg-white p-5 sm:p-7">
+            <div className="flex items-end justify-between border-b-2 border-primary pb-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[.14em] text-muted-foreground">
-                  あなたの場合
+                <p className="text-xs font-bold tracking-[.12em] text-muted-foreground">
+                  MATCHING PREVIEW
                 </p>
-                <p className="mt-1 text-xl font-black tracking-tight">
-                  使えそうな支援
-                </p>
+                <p className="mt-1 text-2xl font-black">あなたに関係する支援</p>
               </div>
-              <div className="flex size-16 flex-col items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-                <span className="text-2xl font-black">8</span>
-                <span className="text-[10px] font-bold">件</span>
-              </div>
+              <p className="text-5xl font-black text-primary">
+                4<span className="text-sm text-black">件</span>
+              </p>
             </div>
-            <div className="mt-5 rounded-2xl bg-secondary p-5">
+            <div className="py-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-black">子どもの医療費を軽減</p>
-                  <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                  <p className="text-lg font-black">
+                    子どもの通院・入院費を軽減
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-muted-foreground">
                     福岡市 子ども医療費助成制度
                   </p>
                 </div>
-                <span className="shrink-0 rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold text-white">
+                <span className="shrink-0 bg-black px-3 py-1.5 text-xs font-bold text-white">
                   可能性 高い
                 </span>
               </div>
-              <div className="mt-4 space-y-2 text-sm font-semibold">
-                <p className="flex items-center gap-2">
-                  <Check className="size-4 text-primary" /> 福岡市に住んでいる
+              <p className="mt-5 border-l-4 border-primary pl-4 text-base font-black">
+                通院は月500円まで
+                <br />
+                入院・薬局は自己負担なし
+              </p>
+              <div className="mt-5 grid gap-2 text-sm font-semibold sm:grid-cols-2">
+                <p className="flex gap-2">
+                  <CheckCircle2 className="mt-0.5 size-4 text-primary" />{' '}
+                  福岡市に住んでいる
                 </p>
-                <p className="flex items-center gap-2">
-                  <Check className="size-4 text-primary" />{' '}
-                  対象年齢の子どもがいる
+                <p className="flex gap-2">
+                  <CheckCircle2 className="mt-0.5 size-4 text-primary" />{' '}
+                  18歳以下の子どもがいる
                 </p>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-3 border-t border-border pt-4 text-center">
               {[
-                ['3件', 'いま使えそう'],
-                ['2件', '条件を確認'],
-                ['3件', '今後の候補'],
+                ['1', '可能性 高い'],
+                ['3', '要確認'],
+                ['0', '対象外'],
               ].map(([count, label]) => (
                 <div
-                  className="rounded-xl border border-border px-2 py-3"
+                  className="border-r border-border last:border-r-0"
                   key={label}
                 >
-                  <p className="font-black">{count}</p>
-                  <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">
+                  <p className="text-xl font-black">{count}</p>
+                  <p className="text-[11px] font-semibold text-muted-foreground">
                     {label}
                   </p>
                 </div>
@@ -274,29 +284,36 @@ function ProfileView({
   setProfile,
   onComplete,
   onBack,
+  onHome,
 }: {
   profile: Profile;
   setProfile: (profile: Profile) => void;
   onComplete: () => void;
   onBack: () => void;
+  onHome: () => void;
 }) {
   const complete = Boolean(
     profile.residence && profile.ageBand && profile.household,
   );
   return (
-    <Shell view="profile" onBack={onBack}>
-      <section className="mx-auto grid w-full max-w-5xl gap-8 px-5 pb-20 pt-5 sm:px-8 lg:grid-cols-[1fr_280px]">
-        <div className="rounded-[2rem] border border-border bg-white p-5 shadow-[0_20px_60px_rgba(15,42,67,.08)] sm:p-8">
-          <p className="text-sm font-black text-primary">基本プロフィール</p>
-          <h1 className="mt-2 text-3xl font-black tracking-[-0.045em] sm:text-4xl">
-            まず、3つだけ教えてください
+    <Shell view="profile" onHome={onHome} onBack={onBack}>
+      <section className="mx-auto grid w-full max-w-6xl gap-10 px-5 pb-20 pt-5 sm:px-8 lg:grid-cols-[1fr_290px]">
+        <div>
+          <p className="text-sm font-black text-primary">01 / BASIC PROFILE</p>
+          <h1 className="mt-3 text-3xl font-black tracking-[-0.045em] sm:text-5xl">
+            まず、3つだけ
+            <br className="hidden sm:block" />
+            教えてください
           </h1>
-          <p className="mt-3 font-medium leading-7 text-muted-foreground">
-            所得や仕事の状況はまだ聞きません。最初の候補を見てから、必要な分だけ確認します。
+          <div className="mt-6 h-[3px] w-full bg-primary" />
+          <p className="mt-5 max-w-2xl font-medium leading-7 text-muted-foreground">
+            詳しい所得や住まいの状況は、結果を見たあとに必要な分だけ確認します。
           </p>
-          <div className="mt-9 space-y-9">
+          <div className="mt-10 space-y-10">
             <fieldset>
-              <legend className="mb-3 text-lg font-black">1. お住まい</legend>
+              <legend className="mb-4 text-lg font-black">
+                <span className="mr-3 text-primary">1.</span>お住まい
+              </legend>
               <RadioGroup
                 value={profile.residence ?? ''}
                 onValueChange={(value) =>
@@ -309,16 +326,13 @@ function ProfileView({
                     key={option.value}
                     {...option}
                     current={profile.residence}
-                    onSelect={() =>
-                      setProfile({ ...profile, residence: option.value })
-                    }
                   />
                 ))}
               </RadioGroup>
             </fieldset>
             <fieldset>
-              <legend className="mb-3 text-lg font-black">
-                2. あなたの年齢
+              <legend className="mb-4 text-lg font-black">
+                <span className="mr-3 text-primary">2.</span>あなたの年齢
               </legend>
               <RadioGroup
                 value={profile.ageBand ?? ''}
@@ -332,16 +346,13 @@ function ProfileView({
                     key={option.value}
                     {...option}
                     current={profile.ageBand}
-                    onSelect={() =>
-                      setProfile({ ...profile, ageBand: option.value })
-                    }
                   />
                 ))}
               </RadioGroup>
             </fieldset>
             <fieldset>
-              <legend className="mb-3 text-lg font-black">
-                3. 世帯について
+              <legend className="mb-4 text-lg font-black">
+                <span className="mr-3 text-primary">3.</span>世帯について
               </legend>
               <RadioGroup
                 value={profile.household ?? ''}
@@ -353,12 +364,8 @@ function ProfileView({
                 {householdOptions.map((option) => (
                   <Choice
                     key={option.value}
-                    value={option.value}
-                    label={option.label}
+                    {...option}
                     current={profile.household}
-                    onSelect={() =>
-                      setProfile({ ...profile, household: option.value })
-                    }
                   />
                 ))}
               </RadioGroup>
@@ -367,21 +374,23 @@ function ProfileView({
           <Button
             disabled={!complete}
             onClick={onComplete}
-            className="mt-10 h-14 w-full gap-3 rounded-2xl text-base font-bold sm:w-auto sm:px-7"
+            className="mt-10 h-14 w-full gap-3 rounded-none bg-black px-7 text-base font-bold text-white hover:bg-primary sm:w-auto"
           >
             この条件で結果を見る <ArrowRight className="size-5" />
           </Button>
         </div>
-        <aside className="h-fit rounded-2xl bg-[#123744] p-6 text-white lg:sticky lg:top-24">
-          <ShieldCheck className="size-7 text-[#d7f36a]" />
-          <h2 className="mt-4 text-lg font-black">まだ入力しないこと</h2>
-          <ul className="mt-3 space-y-3 text-sm font-semibold leading-6 text-white/75">
+        <aside className="h-fit border-t-[3px] border-primary bg-secondary p-6 lg:sticky lg:top-28">
+          <ShieldCheck className="size-7 text-primary" />
+          <h2 className="mt-4 text-lg font-black">
+            個人を特定する情報は聞きません
+          </h2>
+          <ul className="mt-4 space-y-3 text-sm font-semibold leading-6 text-muted-foreground">
             <li>氏名や連絡先</li>
             <li>正確な年収や資産額</li>
-            <li>マイナンバーなどの個人情報</li>
+            <li>マイナンバーなど</li>
           </ul>
-          <p className="mt-5 border-t border-white/15 pt-4 text-xs leading-5 text-white/60">
-            入力内容はこの端末内の診断だけに使われます。
+          <p className="mt-5 border-t border-primary/30 pt-4 text-xs leading-5 text-muted-foreground">
+            診断は福岡市の公式公開情報を簡略化したものです。
           </p>
         </aside>
       </section>
@@ -396,15 +405,14 @@ function ResultCard({
   result: Evaluation;
   onOpen: () => void;
 }) {
-  const meta = statusMeta[result.status];
   return (
-    <article className="group rounded-[1.6rem] border border-border bg-white p-5 shadow-[0_9px_28px_rgba(15,42,67,.055)] transition hover:-translate-y-0.5 hover:shadow-[0_15px_34px_rgba(15,42,67,.09)] sm:p-6">
+    <article className="border border-[#dfe7e9] border-t-[3px] border-t-primary bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-[0_12px_34px_rgba(54,121,150,.12)] sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <span className="text-xs font-black text-primary">
+          <p className="text-xs font-black tracking-[.08em] text-primary">
             {result.program.category}
-          </span>
-          <h3 className="mt-1 text-xl font-black tracking-[-0.035em]">
+          </p>
+          <h3 className="mt-2 text-xl font-black tracking-[-0.035em] sm:text-2xl">
             {result.program.benefitLabel}
           </h3>
           <p className="mt-1 text-sm font-semibold text-muted-foreground">
@@ -412,149 +420,178 @@ function ResultCard({
           </p>
         </div>
         <span
-          className={`rounded-full px-3 py-1.5 text-xs font-black ${statusStyles[result.status]}`}
+          className={`px-3 py-1.5 text-xs font-black ${statusStyles[result.status]}`}
         >
-          {meta.shortLabel}
+          {statusMeta[result.status].shortLabel}
         </span>
       </div>
-      <p className="mt-5 rounded-xl bg-secondary px-4 py-3 text-sm font-black text-secondary-foreground">
+      <p className="mt-6 border-l-4 border-primary pl-4 text-base font-black leading-7">
         {result.program.amount}
       </p>
-      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+      <div className="mt-6 grid gap-2 sm:grid-cols-2">
         {result.matched.slice(0, 2).map((criterion) => (
           <p
             className="flex items-start gap-2 text-sm font-bold"
             key={criterion.key}
           >
-            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[#138477]" />{' '}
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />{' '}
             {criterion.label}
           </p>
         ))}
         {result.unknown.slice(0, 2).map((criterion) => (
           <p
-            className="flex items-start gap-2 text-sm font-bold text-[#70550a]"
+            className="flex items-start gap-2 text-sm font-bold text-[#31596b]"
             key={criterion.key}
           >
-            <CircleHelp className="mt-0.5 size-4 shrink-0" /> {criterion.label}
+            <CircleHelp className="mt-0.5 size-4 shrink-0 text-primary" />{' '}
+            {criterion.label}
           </p>
         ))}
       </div>
-      <button
-        onClick={onOpen}
-        className="mt-5 inline-flex min-h-10 items-center gap-1 text-sm font-black text-primary hover:underline"
-      >
-        照合結果を詳しく見る <ChevronRight className="size-4" />
-      </button>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+        <span className="text-xs font-bold text-muted-foreground">
+          {result.program.applicationStatus}
+        </span>
+        <button
+          onClick={onOpen}
+          className="inline-flex min-h-10 items-center gap-1 text-sm font-black hover:text-primary"
+        >
+          制度を詳しく見る <ChevronRight className="size-4" />
+        </button>
+      </div>
     </article>
   );
 }
 
 function ResultsView({
   results,
-  profile: _profile,
   onEdit,
   onFollowup,
   onOpen,
+  onHome,
 }: {
   results: Evaluation[];
-  profile: Profile;
   onEdit: () => void;
   onFollowup: () => void;
   onOpen: (id: string) => void;
+  onHome: () => void;
 }) {
   const counts = (['eligible', 'needs-info', 'future'] as MatchStatus[]).map(
     (status) => results.filter((result) => result.status === status).length,
   );
-  const hasUnknown = results.some((result) => result.unknown.length > 0);
+  const needsFollowup = results.some(
+    (result) => result.status === 'needs-info',
+  );
   return (
-    <Shell view="results" onBack={onEdit}>
-      <section className="mx-auto w-full max-w-5xl px-5 pb-24 pt-4 sm:px-8">
-        <div className="relative overflow-hidden rounded-[2rem] bg-[#123744] p-6 text-white sm:p-9">
-          <div className="absolute right-[-40px] top-[-70px] size-60 rounded-full border-[40px] border-[#2bbaa9]/20" />
-          <p className="text-sm font-bold text-[#d7f36a]">診断結果</p>
-          <h1 className="relative mt-2 max-w-2xl text-3xl font-black tracking-[-0.05em] sm:text-4xl">
-            あなたに関係がありそうな支援が
-            <br className="hidden sm:block" /> {results.length}件あります
-          </h1>
-          <div className="relative mt-7 grid max-w-2xl grid-cols-3 gap-2">
+    <Shell view="results" onHome={onHome} onBack={onEdit}>
+      <section className="mx-auto w-full max-w-6xl px-5 pb-24 pt-4 sm:px-8">
+        <div className="grid gap-8 border-b-[3px] border-primary pb-8 lg:grid-cols-[1fr_360px] lg:items-end">
+          <div>
+            <p className="text-sm font-black text-primary">02 / YOUR RESULTS</p>
+            <h1 className="mt-3 text-3xl font-black tracking-[-0.05em] sm:text-5xl">
+              あなたに関係がありそうな
+              <br className="hidden sm:block" />
+              支援は {results.length}件です
+            </h1>
+            <button
+              onClick={onEdit}
+              className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-black"
+            >
+              <PencilLine className="size-4" /> 基本条件を変更
+            </button>
+          </div>
+          <div className="grid grid-cols-3 border border-border bg-secondary py-5">
             {[
-              ['いま使えそう', counts[0]],
-              ['条件を確認', counts[1]],
-              ['今後の候補', counts[2]],
+              ['可能性 高い', counts[0]],
+              ['要確認', counts[1]],
+              ['対象外', counts[2]],
             ].map(([label, count]) => (
               <div
-                className="rounded-xl bg-white/10 p-3 sm:p-4"
+                className="border-r border-primary/30 px-2 text-center last:border-r-0"
                 key={String(label)}
               >
-                <p className="text-2xl font-black">
-                  {count}
-                  <span className="ml-0.5 text-xs">件</span>
-                </p>
-                <p className="mt-1 text-[11px] font-bold text-white/65 sm:text-sm">
+                <p className="text-3xl font-black">{count}</p>
+                <p className="mt-1 text-xs font-bold text-muted-foreground">
                   {label}
                 </p>
               </div>
             ))}
           </div>
-          <button
-            onClick={onEdit}
-            className="relative mt-5 inline-flex items-center gap-2 text-sm font-bold text-white/70 hover:text-white"
-          >
-            <PencilLine className="size-4" /> 基本条件を変更
-          </button>
         </div>
 
-        {hasUnknown && (
-          <div className="mt-6 flex flex-col justify-between gap-5 rounded-[1.6rem] border-2 border-[#e4c94e] bg-[#fff9dc] p-5 sm:flex-row sm:items-center sm:p-6">
+        {needsFollowup && (
+          <div className="mt-8 flex flex-col justify-between gap-5 border-l-4 border-primary bg-secondary p-5 sm:flex-row sm:items-center sm:p-6">
             <div>
-              <p className="flex items-center gap-2 text-xs font-black text-[#7a5b00]">
-                <Sparkles className="size-4" /> あと一歩で、もっと正確に
+              <p className="flex items-center gap-2 text-xs font-black text-primary">
+                <Sparkles className="size-4" /> MORE ACCURATE
               </p>
-              <h2 className="mt-1 text-xl font-black tracking-tight">
-                3つの追加質問で「要確認」を絞れます
+              <h2 className="mt-1 text-xl font-black">
+                必要な追加質問に答えると、判定を絞れます
               </h2>
-              <p className="mt-1 text-sm font-semibold text-[#6f6649]">
-                結果を見たあとだから、必要なことだけお聞きします。
+              <p className="mt-1 text-sm font-semibold text-muted-foreground">
+                今の回答に関係する項目だけ表示します。
               </p>
             </div>
             <Button
               onClick={onFollowup}
-              className="h-12 shrink-0 gap-2 rounded-xl px-5 font-bold"
+              className="h-12 shrink-0 gap-2 rounded-none bg-black px-5 font-bold text-white hover:bg-primary"
             >
               判定精度を上げる <ArrowRight className="size-4" />
             </Button>
           </div>
         )}
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-[220px_1fr]">
-          <aside>
-            <p className="text-sm font-black text-primary">
-              あなたに特に関係がありそう
-            </p>
-            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em]">
-              制度名より先に、
-              <br />
-              得られる支援を。
-            </h2>
-            <p className="mt-4 text-sm font-medium leading-6 text-muted-foreground">
-              該当度の高い順に表示しています。金額が単純に足せないため、合計額は表示していません。
-            </p>
-          </aside>
-          <div className="space-y-4">
-            {results.map((result) => (
-              <ResultCard
-                key={result.program.id}
-                result={result}
-                onOpen={() => onOpen(result.program.id)}
-              />
-            ))}
+        {results.length > 0 ? (
+          <div className="mt-12 grid gap-9 lg:grid-cols-[230px_1fr]">
+            <aside>
+              <p className="text-sm font-black text-primary">
+                制度を探す必要はありません
+              </p>
+              <h2 className="mt-3 text-2xl font-black tracking-[-0.04em]">
+                あなたの条件との
+                <br />
+                一致点から表示。
+              </h2>
+              <p className="mt-5 text-sm font-medium leading-7 text-muted-foreground">
+                該当度の高い順です。支援内容の性質が違うため、金額は合算していません。
+              </p>
+              <p className="mt-6 border-t border-border pt-4 text-xs font-semibold leading-5 text-muted-foreground">
+                掲載情報は2026年9月7日に福岡市公式サイトで確認しています。
+              </p>
+            </aside>
+            <div className="space-y-5">
+              {results.map((result) => (
+                <ResultCard
+                  key={result.program.id}
+                  result={result}
+                  onOpen={() => onOpen(result.program.id)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="mx-auto mt-14 max-w-2xl border-t-[3px] border-primary bg-secondary p-8 text-center">
+            <CircleHelp className="mx-auto size-9 text-primary" />
+            <h2 className="mt-4 text-2xl font-black">
+              現在の掲載制度では候補が見つかりませんでした
+            </h2>
+            <p className="mt-3 font-medium leading-7 text-muted-foreground">
+              これは支援制度がないという意味ではありません。現在は福岡市の5制度から診断しています。対象制度を順次追加します。
+            </p>
+            <Button
+              onClick={onEdit}
+              variant="outline"
+              className="mt-6 h-11 rounded-none border-black px-5 font-bold"
+            >
+              条件を見直す
+            </Button>
+          </div>
+        )}
 
-        <div className="mt-12 rounded-[1.6rem] border border-dashed border-[#93aeb4] bg-white/55 p-6 sm:flex sm:items-center sm:justify-between">
+        <div className="mt-14 flex flex-col gap-4 border-t border-dashed border-primary py-7 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[.12em] text-muted-foreground">
-              Next: life change
+            <p className="text-xs font-black tracking-[.1em] text-primary">
+              NEXT / LIFE CHANGE
             </p>
             <h2 className="mt-2 text-xl font-black">
               もし暮らしが変わったら？
@@ -563,7 +600,7 @@ function ResultsView({
               次の段階では、引越しや家族の変化による支援の差分を比べられます。
             </p>
           </div>
-          <span className="mt-4 inline-block rounded-full border border-border bg-white px-3 py-1.5 text-xs font-bold text-muted-foreground sm:mt-0">
+          <span className="self-start border border-border bg-white px-3 py-1.5 text-xs font-bold text-muted-foreground">
             次期アップデート
           </span>
         </div>
@@ -572,139 +609,34 @@ function ResultsView({
   );
 }
 
-function FollowupView({
-  profile,
-  setProfile,
-  onComplete,
-  onBack,
-}: {
-  profile: Profile;
-  setProfile: (profile: Profile) => void;
-  onComplete: () => void;
-  onBack: () => void;
-}) {
-  return (
-    <Shell view="followup" onBack={onBack}>
-      <section className="mx-auto w-full max-w-3xl px-5 pb-24 pt-5 sm:px-8">
-        <p className="text-sm font-black text-primary">判定精度を上げる</p>
-        <h1 className="mt-2 text-3xl font-black tracking-[-0.045em] sm:text-4xl">
-          あと3つだけ、確認します
-        </h1>
-        <p className="mt-3 font-medium leading-7 text-muted-foreground">
-          正確な金額は不要です。答えたくない項目は「わからない」を選べます。
-        </p>
-        <div className="mt-8 space-y-5">
-          <QuestionCard number="1" icon={FileCheck2} title="世帯年収の目安">
-            <RadioGroup
-              value={profile.incomeBand ?? 'unknown'}
-              onValueChange={(value) =>
-                setProfile({
-                  ...profile,
-                  incomeBand: value as Profile['incomeBand'],
-                })
-              }
-              className="grid gap-2 sm:grid-cols-2"
-            >
-              {[
-                ['under300', '300万円未満'],
-                ['300-500', '300〜500万円'],
-                ['over500', '500万円以上'],
-                ['unknown', 'わからない・答えない'],
-              ].map(([value, label]) => (
-                <Choice
-                  key={value}
-                  value={value}
-                  label={label}
-                  current={profile.incomeBand ?? 'unknown'}
-                  onSelect={() =>
-                    setProfile({
-                      ...profile,
-                      incomeBand: value as Profile['incomeBand'],
-                    })
-                  }
-                />
-              ))}
-            </RadioGroup>
-          </QuestionCard>
-          <QuestionCard number="2" icon={Home} title="住まいの予定">
-            <RadioGroup
-              value={profile.housingPlan ?? 'unknown'}
-              onValueChange={(value) =>
-                setProfile({
-                  ...profile,
-                  housingPlan: value as Profile['housingPlan'],
-                })
-              }
-              className="grid gap-2 sm:grid-cols-2"
-            >
-              {[
-                ['renting', '賃貸への住み替え'],
-                ['buying', '家の購入'],
-                ['none', '今は予定なし'],
-                ['unknown', 'まだわからない'],
-              ].map(([value, label]) => (
-                <Choice
-                  key={value}
-                  value={value}
-                  label={label}
-                  current={profile.housingPlan ?? 'unknown'}
-                  onSelect={() =>
-                    setProfile({
-                      ...profile,
-                      housingPlan: value as Profile['housingPlan'],
-                    })
-                  }
-                />
-              ))}
-            </RadioGroup>
-          </QuestionCard>
-          <QuestionCard
-            number="3"
-            icon={BriefcaseBusiness}
-            title="現在の仕事の状況"
-          >
-            <RadioGroup
-              value={profile.employment ?? 'unknown'}
-              onValueChange={(value) =>
-                setProfile({
-                  ...profile,
-                  employment: value as Profile['employment'],
-                })
-              }
-              className="grid gap-2 sm:grid-cols-2"
-            >
-              {[
-                ['working', '働いている'],
-                ['seeking', '仕事を探している'],
-                ['leave', '休職・復職予定'],
-                ['unknown', '答えない'],
-              ].map(([value, label]) => (
-                <Choice
-                  key={value}
-                  value={value}
-                  label={label}
-                  current={profile.employment ?? 'unknown'}
-                  onSelect={() =>
-                    setProfile({
-                      ...profile,
-                      employment: value as Profile['employment'],
-                    })
-                  }
-                />
-              ))}
-            </RadioGroup>
-          </QuestionCard>
-        </div>
-        <Button
-          onClick={onComplete}
-          className="mt-8 h-14 w-full gap-2 rounded-2xl text-base font-bold"
-        >
-          結果を更新する <Sparkles className="size-5" />
-        </Button>
-      </section>
-    </Shell>
-  );
-}
+const options = {
+  yesNo: [
+    ['yes', 'はい'],
+    ['no', 'いいえ'],
+    ['unknown', 'わからない・答えない'],
+  ],
+  school: [
+    ['elementary-middle', '小学生・中学生がいる'],
+    ['other', 'それ以外'],
+    ['unknown', 'わからない'],
+  ],
+  aid: [
+    ['likely', '非課税・児童扶養手当受給などに該当'],
+    ['unlikely', '該当しないと思う'],
+    ['unknown', '基準を確認したい'],
+  ],
+  housing: [
+    ['renting', '賃貸へ住み替え'],
+    ['buying', '住宅を購入'],
+    ['none', '住み替え予定なし'],
+    ['unknown', 'まだわからない'],
+  ],
+  premium: [
+    ['1-7', '所得段階1〜7'],
+    ['8plus', '所得段階8以上'],
+    ['unknown', 'わからない'],
+  ],
+} as const;
 
 function QuestionCard({
   number,
@@ -712,22 +644,20 @@ function QuestionCard({
   title,
   children,
 }: {
-  number: string;
+  number: number;
   icon: typeof Home;
   title: string;
   children: React.ReactNode;
 }) {
   return (
-    <fieldset className="rounded-[1.6rem] border border-border bg-white p-5 sm:p-6">
+    <fieldset className="border border-[#dfe7e9] border-t-[3px] border-t-primary bg-white p-5 sm:p-6">
       <legend className="sr-only">{title}</legend>
-      <div className="mb-4 flex items-center gap-3">
-        <span className="grid size-9 place-items-center rounded-xl bg-secondary text-primary">
-          <Icon className="size-4" />
+      <div className="mb-5 flex items-center gap-3">
+        <span className="grid size-10 place-items-center bg-secondary text-primary">
+          <Icon className="size-5" />
         </span>
         <div>
-          <p className="text-xs font-black text-muted-foreground">
-            質問 {number}
-          </p>
+          <p className="text-xs font-black text-primary">QUESTION 0{number}</p>
           <h2 className="text-lg font-black">{title}</h2>
         </div>
       </div>
@@ -736,121 +666,227 @@ function QuestionCard({
   );
 }
 
-function DetailView({
-  result,
+function FollowupView({
+  profile,
+  setProfile,
+  onComplete,
   onBack,
+  onHome,
 }: {
-  result: Evaluation;
+  profile: Profile;
+  setProfile: (profile: Profile) => void;
+  onComplete: () => void;
   onBack: () => void;
+  onHome: () => void;
 }) {
-  const meta = statusMeta[result.status];
+  const isChildHousehold = ['with-children', 'single-parent'].includes(
+    profile.household ?? '',
+  );
+  const isSenior = profile.ageBand === '65plus';
+  let number = 0;
   return (
-    <Shell view="detail" onBack={onBack}>
-      <article className="mx-auto w-full max-w-4xl px-5 pb-24 pt-4 sm:px-8">
-        <div className="rounded-[2rem] bg-white p-6 shadow-[0_20px_60px_rgba(15,42,67,.08)] sm:p-9">
-          <div className="flex flex-wrap items-start justify-between gap-5 border-b border-border pb-7">
-            <div>
-              <span className="text-xs font-black text-primary">
-                {result.program.category}
-              </span>
-              <h1 className="mt-2 text-3xl font-black tracking-[-0.05em] sm:text-4xl">
-                {result.program.benefitLabel}
-              </h1>
-              <p className="mt-2 font-semibold text-muted-foreground">
-                {result.program.officialName}
-              </p>
-            </div>
-            <span
-              className={`rounded-full px-4 py-2 text-sm font-black ${statusStyles[result.status]}`}
-            >
-              {meta.label}
-            </span>
-          </div>
-          <section className="mt-8">
-            <p className="text-xs font-black uppercase tracking-[.13em] text-primary">
-              あなたの場合
-            </p>
-            <h2 className="mt-2 text-2xl font-black tracking-tight">
-              条件との照合
-            </h2>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {result.matched.map((criterion) => (
-                <MatchRow
-                  key={criterion.key}
-                  kind="match"
-                  label={criterion.label}
-                />
-              ))}
-              {result.unknown.map((criterion) => (
-                <MatchRow
-                  key={criterion.key}
-                  kind="unknown"
-                  label={criterion.label}
-                />
-              ))}
-              {result.unmatched.map((criterion) => (
-                <MatchRow
-                  key={criterion.key}
-                  kind="unmatched"
-                  label={criterion.label}
-                />
-              ))}
-            </div>
-          </section>
-          <section className="mt-9 grid gap-6 rounded-[1.6rem] bg-secondary p-5 sm:grid-cols-[180px_1fr] sm:p-7">
-            <div>
-              <p className="text-xs font-black text-muted-foreground">
-                支援の内容
-              </p>
-              <p className="mt-2 text-xl font-black text-primary">
-                {result.program.amount}
-              </p>
-            </div>
-            <div>
-              <p className="font-bold leading-7">{result.program.summary}</p>
-              <ul className="mt-4 space-y-2 text-sm font-semibold text-muted-foreground">
-                {result.program.points.map((point) => (
-                  <li className="flex gap-2" key={point}>
-                    <Check className="mt-0.5 size-4 shrink-0 text-primary" />{' '}
-                    {point}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-          <section className="mt-9 border-t border-border pt-7">
-            <div className="flex items-start gap-3">
-              <Info className="mt-0.5 size-5 shrink-0 text-primary" />
-              <div>
-                <h2 className="font-black">
-                  申請前に公式情報を確認してください
-                </h2>
-                <p className="mt-1 text-sm font-medium leading-6 text-muted-foreground">
-                  現在はUI・判定フロー確認用のモックデータです。公開前に制度別の公式ページ、募集期間、最新要件へ差し替えます。
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 flex flex-col gap-3 rounded-xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-bold text-muted-foreground">
-                  公式情報・最終確認日
-                </p>
-                <p className="mt-1 text-sm font-black">
-                  {result.program.lastVerified}
-                </p>
-              </div>
-              <a
-                href={result.program.officialUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-10 items-center gap-2 self-start rounded-xl bg-primary px-4 text-sm font-bold text-white hover:bg-[#0a4b60]"
+    <Shell view="followup" onHome={onHome} onBack={onBack}>
+      <section className="mx-auto w-full max-w-4xl px-5 pb-24 pt-5 sm:px-8">
+        <p className="text-sm font-black text-primary">03 / MORE DETAIL</p>
+        <h1 className="mt-3 text-3xl font-black tracking-[-0.045em] sm:text-5xl">
+          あなたに必要なことだけ
+          <br />
+          確認します
+        </h1>
+        <div className="mt-6 h-[3px] bg-primary" />
+        <p className="mt-5 font-medium leading-7 text-muted-foreground">
+          答えに迷う項目は「わからない」を選べます。最終的な対象可否は公式窓口で確認してください。
+        </p>
+        <div className="mt-9 space-y-5">
+          {isChildHousehold && (
+            <>
+              <QuestionCard
+                number={++number}
+                icon={HeartPulse}
+                title="子どもは健康保険に加入していますか"
               >
-                福岡市公式サイト <ExternalLink className="size-4" />
-              </a>
-            </div>
-          </section>
+                <RadioGroup
+                  value={profile.childHealthInsurance ?? 'unknown'}
+                  onValueChange={(value) =>
+                    setProfile({
+                      ...profile,
+                      childHealthInsurance:
+                        value as Profile['childHealthInsurance'],
+                    })
+                  }
+                  className="grid gap-2 sm:grid-cols-3"
+                >
+                  {options.yesNo.map(([value, label]) => (
+                    <Choice
+                      key={value}
+                      value={value}
+                      label={label}
+                      current={profile.childHealthInsurance ?? 'unknown'}
+                    />
+                  ))}
+                </RadioGroup>
+              </QuestionCard>
+              <QuestionCard
+                number={++number}
+                icon={BookOpen}
+                title="小学生または中学生の子どもはいますか"
+              >
+                <RadioGroup
+                  value={profile.schoolStage ?? 'unknown'}
+                  onValueChange={(value) =>
+                    setProfile({
+                      ...profile,
+                      schoolStage: value as Profile['schoolStage'],
+                    })
+                  }
+                  className="grid gap-2 sm:grid-cols-3"
+                >
+                  {options.school.map(([value, label]) => (
+                    <Choice
+                      key={value}
+                      value={value}
+                      label={label}
+                      current={profile.schoolStage ?? 'unknown'}
+                    />
+                  ))}
+                </RadioGroup>
+              </QuestionCard>
+              <QuestionCard
+                number={++number}
+                icon={FileCheck2}
+                title="就学援助の所得・受給要件について"
+              >
+                <RadioGroup
+                  value={profile.schoolAidEligibility ?? 'unknown'}
+                  onValueChange={(value) =>
+                    setProfile({
+                      ...profile,
+                      schoolAidEligibility:
+                        value as Profile['schoolAidEligibility'],
+                    })
+                  }
+                  className="grid gap-2 sm:grid-cols-3"
+                >
+                  {options.aid.map(([value, label]) => (
+                    <Choice
+                      key={value}
+                      value={value}
+                      label={label}
+                      current={profile.schoolAidEligibility ?? 'unknown'}
+                    />
+                  ))}
+                </RadioGroup>
+              </QuestionCard>
+              <QuestionCard
+                number={++number}
+                icon={MapPin}
+                title="2026年4月1日以降に福岡市内で転居しますか"
+              >
+                <RadioGroup
+                  value={profile.moveWithinCity ?? 'unknown'}
+                  onValueChange={(value) =>
+                    setProfile({
+                      ...profile,
+                      moveWithinCity: value as Profile['moveWithinCity'],
+                    })
+                  }
+                  className="grid gap-2 sm:grid-cols-3"
+                >
+                  {options.yesNo.map(([value, label]) => (
+                    <Choice
+                      key={value}
+                      value={value}
+                      label={label}
+                      current={profile.moveWithinCity ?? 'unknown'}
+                    />
+                  ))}
+                </RadioGroup>
+              </QuestionCard>
+              <QuestionCard number={++number} icon={Home} title="住まいの予定">
+                <RadioGroup
+                  value={profile.housingPlan ?? 'unknown'}
+                  onValueChange={(value) =>
+                    setProfile({
+                      ...profile,
+                      housingPlan: value as Profile['housingPlan'],
+                    })
+                  }
+                  className="grid gap-2 sm:grid-cols-2"
+                >
+                  {options.housing.map(([value, label]) => (
+                    <Choice
+                      key={value}
+                      value={value}
+                      label={label}
+                      current={profile.housingPlan ?? 'unknown'}
+                    />
+                  ))}
+                </RadioGroup>
+              </QuestionCard>
+            </>
+          )}
+          {isSenior && (
+            <>
+              <QuestionCard
+                number={++number}
+                icon={Users}
+                title="満70歳以上ですか"
+              >
+                <RadioGroup
+                  value={profile.age70Plus ?? 'unknown'}
+                  onValueChange={(value) =>
+                    setProfile({
+                      ...profile,
+                      age70Plus: value as Profile['age70Plus'],
+                    })
+                  }
+                  className="grid gap-2 sm:grid-cols-3"
+                >
+                  {options.yesNo.map(([value, label]) => (
+                    <Choice
+                      key={value}
+                      value={value}
+                      label={label}
+                      current={profile.age70Plus ?? 'unknown'}
+                    />
+                  ))}
+                </RadioGroup>
+              </QuestionCard>
+              <QuestionCard
+                number={++number}
+                icon={TrainFront}
+                title="介護保険料所得段階区分"
+              >
+                <RadioGroup
+                  value={profile.premiumStage ?? 'unknown'}
+                  onValueChange={(value) =>
+                    setProfile({
+                      ...profile,
+                      premiumStage: value as Profile['premiumStage'],
+                    })
+                  }
+                  className="grid gap-2 sm:grid-cols-3"
+                >
+                  {options.premium.map(([value, label]) => (
+                    <Choice
+                      key={value}
+                      value={value}
+                      label={label}
+                      current={profile.premiumStage ?? 'unknown'}
+                    />
+                  ))}
+                </RadioGroup>
+              </QuestionCard>
+            </>
+          )}
         </div>
-      </article>
+        <Button
+          onClick={onComplete}
+          className="mt-8 h-14 w-full gap-2 rounded-none bg-black text-base font-bold text-white hover:bg-primary"
+        >
+          結果を更新する <Sparkles className="size-5" />
+        </Button>
+      </section>
     </Shell>
   );
 }
@@ -867,45 +903,169 @@ function MatchRow({
       ? {
           icon: CheckCircle2,
           text: '条件に一致',
-          style: 'bg-[#ecf6f4] text-[#116d62]',
+          style: 'border-primary bg-secondary',
         }
       : kind === 'unknown'
         ? {
             icon: CircleHelp,
             text: '確認が必要',
-            style: 'bg-[#fff8db] text-[#70550a]',
+            style: 'border-[#b7cbd3] bg-white',
           }
         : {
             icon: ArrowRight,
-            text: '現状は対象外',
-            style: 'bg-[#f0f3f4] text-[#60737b]',
+            text: '現在は対象外',
+            style: 'border-[#ddd] bg-[#f5f5f3]',
           };
   const Icon = config.icon;
   return (
-    <div className={`rounded-xl p-4 ${config.style}`}>
-      <p className="flex items-center gap-2 text-xs font-black">
-        <Icon className="size-4" /> {config.text}
+    <div className={`border-l-4 p-4 ${config.style}`}>
+      <p className="flex items-center gap-2 text-xs font-black text-muted-foreground">
+        <Icon className="size-4 text-primary" /> {config.text}
       </p>
-      <p className="mt-2 text-sm font-bold text-foreground">{label}</p>
+      <p className="mt-2 text-sm font-bold">{label}</p>
     </div>
+  );
+}
+
+function DetailView({
+  result,
+  onBack,
+  onHome,
+}: {
+  result: Evaluation;
+  onBack: () => void;
+  onHome: () => void;
+}) {
+  return (
+    <Shell view="detail" onHome={onHome} onBack={onBack}>
+      <article className="mx-auto w-full max-w-5xl px-5 pb-24 pt-4 sm:px-8">
+        <header className="border-b-[3px] border-primary pb-8">
+          <p className="text-sm font-black text-primary">04 / PROGRAM DETAIL</p>
+          <div className="mt-3 flex flex-wrap items-start justify-between gap-5">
+            <div>
+              <h1 className="text-3xl font-black tracking-[-0.05em] sm:text-5xl">
+                {result.program.benefitLabel}
+              </h1>
+              <p className="mt-3 font-semibold text-muted-foreground">
+                {result.program.officialName}
+              </p>
+            </div>
+            <span
+              className={`px-4 py-2 text-sm font-black ${statusStyles[result.status]}`}
+            >
+              {statusMeta[result.status].label}
+            </span>
+          </div>
+        </header>
+        <div className="mt-9 grid gap-10 lg:grid-cols-[1fr_290px]">
+          <div>
+            <section>
+              <p className="text-xs font-black tracking-[.12em] text-primary">
+                YOUR CONDITIONS
+              </p>
+              <h2 className="mt-2 text-2xl font-black">あなたの条件との照合</h2>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {result.matched.map((item) => (
+                  <MatchRow key={item.key} kind="match" label={item.label} />
+                ))}
+                {result.unknown.map((item) => (
+                  <MatchRow key={item.key} kind="unknown" label={item.label} />
+                ))}
+                {result.unmatched.map((item) => (
+                  <MatchRow
+                    key={item.key}
+                    kind="unmatched"
+                    label={item.label}
+                  />
+                ))}
+              </div>
+            </section>
+            <section className="mt-10 border-t border-border pt-8">
+              <p className="text-xs font-black tracking-[.12em] text-primary">
+                BENEFIT
+              </p>
+              <h2 className="mt-2 text-2xl font-black">制度の要点</h2>
+              <p className="mt-5 border-l-4 border-primary pl-5 text-xl font-black leading-8">
+                {result.program.amount}
+              </p>
+              <p className="mt-6 font-medium leading-8">
+                {result.program.summary}
+              </p>
+              <ul className="mt-5 space-y-3">
+                {result.program.points.map((point) => (
+                  <li
+                    className="flex gap-3 text-sm font-semibold leading-6"
+                    key={point}
+                  >
+                    <Check className="mt-1 size-4 shrink-0 text-primary" />{' '}
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </div>
+          <aside className="h-fit border-t-[3px] border-primary bg-secondary p-6 lg:sticky lg:top-28">
+            <Info className="size-6 text-primary" />
+            <h2 className="mt-3 text-lg font-black">公式情報で最終確認</h2>
+            <p className="mt-2 text-sm font-medium leading-6 text-muted-foreground">
+              診断では主な条件を簡略化しています。申請前に必ず福岡市の公式ページで全要件を確認してください。
+            </p>
+            <dl className="mt-5 space-y-4 border-t border-primary/30 pt-5 text-sm">
+              <div>
+                <dt className="text-xs font-bold text-muted-foreground">
+                  受付状況
+                </dt>
+                <dd className="mt-1 font-black">
+                  {result.program.applicationStatus}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-bold text-muted-foreground">
+                  公式ページ更新日
+                </dt>
+                <dd className="mt-1 font-black">
+                  {result.program.sourceUpdatedAt}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-bold text-muted-foreground">
+                  くらしシフト確認日
+                </dt>
+                <dd className="mt-1 font-black">
+                  {result.program.lastVerified}
+                </dd>
+              </div>
+            </dl>
+            <a
+              href={result.program.officialUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 bg-black px-4 text-sm font-bold text-white hover:bg-primary"
+            >
+              福岡市公式ページへ <ExternalLink className="size-4" />
+            </a>
+          </aside>
+        </div>
+      </article>
+    </Shell>
   );
 }
 
 export function KurashiShiftApp() {
   const [view, setView] = useState<View>('home');
   const [profile, setProfile] = useState<Profile>({});
-  const [selectedId, setSelectedId] = useState<string>('child-medical');
+  const [selectedId, setSelectedId] = useState('child-medical');
   const results = useMemo(
     () => evaluatePrograms(supportPrograms, profile),
     [profile],
   );
   const selectedResult =
     results.find((result) => result.program.id === selectedId) ?? results[0];
-
   const go = (next: View) => {
     setView(next);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+  const home = () => go('home');
 
   useEffect(() => {
     const context = document.modelContext;
@@ -925,7 +1085,7 @@ export function KurashiShiftApp() {
           name: 'set_basic_profile',
           title: '基本プロフィールで診断する',
           description:
-            '居住地・年齢層・世帯構成を設定し、くらしシフトの診断結果を画面に表示します。',
+            '居住地・年齢層・世帯構成を設定し、福岡市の公式制度との診断結果を表示します。',
           inputSchema: {
             type: 'object',
             properties: {
@@ -978,20 +1138,21 @@ export function KurashiShiftApp() {
         profile={profile}
         setProfile={setProfile}
         onComplete={() => go('results')}
-        onBack={() => go('home')}
+        onBack={home}
+        onHome={home}
       />
     );
   if (view === 'results')
     return (
       <ResultsView
         results={results}
-        profile={profile}
         onEdit={() => go('profile')}
         onFollowup={() => go('followup')}
         onOpen={(id) => {
           setSelectedId(id);
           go('detail');
         }}
+        onHome={home}
       />
     );
   if (view === 'followup')
@@ -1001,20 +1162,27 @@ export function KurashiShiftApp() {
         setProfile={setProfile}
         onComplete={() => go('results')}
         onBack={() => go('results')}
+        onHome={home}
       />
     );
   if (selectedResult)
-    return <DetailView result={selectedResult} onBack={() => go('results')} />;
+    return (
+      <DetailView
+        result={selectedResult}
+        onBack={() => go('results')}
+        onHome={home}
+      />
+    );
   return (
     <ResultsView
       results={results}
-      profile={profile}
       onEdit={() => go('profile')}
       onFollowup={() => go('followup')}
       onOpen={(id) => {
         setSelectedId(id);
         go('detail');
       }}
+      onHome={home}
     />
   );
 }

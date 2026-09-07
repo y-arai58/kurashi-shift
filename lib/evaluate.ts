@@ -38,6 +38,7 @@ export function evaluatePrograms(
     future: 2,
   };
   return programs
+    .filter((program) => program.isRelevant?.(profile) ?? true)
     .map((program) => evaluateProgram(program, profile))
     .filter((result) => result.matched.length > 0 || result.unknown.length > 0)
     .sort((a, b) => rank[a.status] - rank[b.status] || b.score - a.score);
