@@ -47,6 +47,7 @@ await test('unknown medical insurance and exclusions remain unknown; valid answe
     ...parent,
     childAgeEligible: 'yes',
     childHealthInsurance: 'yes',
+    publicAssistance: 'no',
   };
   assert.equal(evaluate('child-medical', partial).status, 'needs-info');
   assert.equal(
@@ -88,7 +89,7 @@ await test('pregnancy can surface moving support but never already-born child be
   );
   assert.equal(result[0].status, 'needs-info');
 });
-await test('unmodeled housing requirements are never silently treated as fulfilled', () => {
+await test('unanswered detailed housing requirements remain unknown', () => {
   const result = evaluate('child-moving', {
     ...parent,
     childAgeEligible: 'yes',
@@ -96,7 +97,7 @@ await test('unmodeled housing requirements are never silently treated as fulfill
     housingPlan: 'buying',
   });
   assert.equal(result.status, 'needs-info');
-  assert.ok(result.unknown.some((item) => item.key === 'housing-rules'));
+  assert.ok(result.unknown.some((item) => item.key === 'housingSpace'));
 });
 await test('school financial uncertainty does not exclude people needing individual review', () => {
   for (const schoolAidEligibility of [

@@ -50,7 +50,12 @@ import {
   updateProfile,
 } from '@/lib/profile';
 import type { Scenario } from '@/lib/profile';
-import { followupQuestions, questionsFor } from '@/lib/questions';
+import {
+  followupQuestions,
+  questionsFor,
+  initialQuestionsFor,
+} from '@/lib/questions';
+import { ConditionGuide, FieldGuidance } from '@/components/condition-guide';
 
 type Page =
   | 'home'
@@ -59,6 +64,7 @@ type Page =
   | 'questions'
   | 'detail'
   | 'compare'
+  | 'guide'
   | 'comparison-detail';
 type Route = { page: Page; id?: string };
 type Navigate = (page: Page, id?: string) => void;
@@ -76,6 +82,7 @@ const pageNames: Record<Page, string> = {
   questions: '追加の質問',
   detail: '制度詳細',
   compare: '暮らしの変化を試す',
+  guide: '条件・手続きを調べる',
   'comparison-detail': '変化後の制度詳細',
 };
 const complete = (profile: Profile) =>
@@ -157,7 +164,14 @@ function Shell({
       <header className="border-b border-primary bg-white">
         <div className="mx-auto flex min-h-20 max-w-6xl items-center justify-between gap-3 px-5 sm:px-8">
           <Logo onHome={() => go('home')} />
-          <div className="text-right text-xs text-muted-foreground">
+          <Button
+            variant="ghost"
+            onClick={() => go('guide')}
+            className="min-h-11 rounded-none px-2 text-sm font-bold"
+          >
+            条件を調べる
+          </Button>
+          <div className="hidden text-right text-xs text-muted-foreground sm:block">
             <p className="text-sm font-bold text-foreground">福岡市版</p>
             <p>公式情報 {supportPrograms.length}制度</p>
           </div>
@@ -316,7 +330,7 @@ function HomeView({ go, hasProfile }: { go: Navigate; hasProfile: boolean }) {
         <p className="max-w-lg text-lg leading-8">
           お住まい・年齢・家族のこと。
           <br />
-          3つの回答から、関係のある制度と
+          基本情報から、関係のある制度と
           <br className="hidden sm:block" />
           「なぜ該当しそうか」がわかります。
         </p>
@@ -324,7 +338,7 @@ function HomeView({ go, hasProfile }: { go: Navigate; hasProfile: boolean }) {
           onClick={() => go(hasProfile ? 'results' : 'profile')}
           className={primaryButton + ' mt-8 gap-3'}
         >
-          {hasProfile ? '診断結果に戻る' : '3つの質問ではじめる'}
+          {hasProfile ? '診断結果に戻る' : '基本情報ではじめる'}
           <ArrowRight className="size-5" />
         </Button>
         <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
@@ -381,6 +395,7 @@ function ProfileView({
   onSave: (profile: Profile) => void;
 }) {
   const [draft, setDraft] = useState(profile);
+  const initialQuestions = initialQuestionsFor(draft);
   const answered = [draft.residence, draft.ageBand, draft.household].filter(
     Boolean,
   ).length;
@@ -388,8 +403,8 @@ function ProfileView({
     setDraft((current) => updateProfile(current, patch));
   return (
     <>
-      <Heading eyebrow="01 / PROFILE" title="まず、3つだけ教えてください。">
-        詳しい条件は結果を見たあとで。わかる範囲からはじめられます。
+      <Heading eyebrow="01 / PROFILE" title="まず、暮らしの基本情報から。">
+        お住まい・年齢・世帯は必須です。家族に関係する共通項目だけ続けて表示します。追加項目はわからなくても進めます。
       </Heading>
       <form
         onSubmit={(event) => {
@@ -422,9 +437,21 @@ function ProfileView({
               set({ household: value as Profile['household'] })
             }
           />
+          {initialQuestions.map((question, index) => (
+            <div key={question.field}>
+              <Choices
+                title={index + 4 + '. ' + question.title + '（任意）'}
+                note={question.note}
+                options={question.options}
+                value={draft[question.field] ?? 'unknown'}
+                onChange={(value) => set({ [question.field]: value })}
+              />
+            </div>
+          ))}
           <div>
             <output className="mb-3 block text-sm text-muted-foreground">
-              {answered} / 3 回答済み
+              必須 {answered} / 3 回答済み・追加の基本情報{' '}
+              {initialQuestions.length}項目は任意
             </output>
             <Button
               type="submit"
@@ -800,12 +827,20 @@ function FollowupView({
                   )
                 }
               />
+              <FieldGuidance
+                field={question.field}
+                onAnswer={(value) =>
+                  setDraft((current) =>
+                    updateProfile(current, { [question.field]: value }),
+                  )
+                }
+              />
             </div>
           ))}
         </div>
         {!questions.length && (
           <p className="border border-border bg-secondary p-6 leading-7">
-            今の条件で追加できる質問はありません。制度詳細の公式ページから、個別の要件を確認してください。
+            今の条件で追加できる質問はありません。制度詳細の条件ガイドから、個別の要件や手続きを調べられます。
           </p>
         )}
         <div className="sticky bottom-0 mt-8 border-t border-border bg-white/95 py-4 backdrop-blur-sm">
@@ -911,7 +946,7 @@ function DetailView({
                         ? '回答と不一致・期限経過'
                         : item.field
                           ? '回答を確認'
-                          : '公式情報で確認'}
+                          : '受付・個別事情を確認'}
                   </p>
                   <p className="mt-2 text-base font-semibold leading-7">
                     {item.label}
@@ -921,6 +956,10 @@ function DetailView({
                       あなたの回答：{answerLabel(item.field, profile)}
                     </p>
                   )}
+                  <FieldGuidance
+                    field={item.field}
+                    guidanceId={item.guidanceId}
+                  />
                 </div>
               ))}
             </div>
@@ -942,6 +981,13 @@ function DetailView({
               </Button>
             )}
           </section>
+          <ConditionGuide
+            key={program.id}
+            programId={program.id}
+            onOpen={(id) =>
+              go(personalized && !simulation ? 'questions' : 'detail', id)
+            }
+          />
           <section className="mt-10 border-t border-border pt-7">
             <h2 className="text-2xl font-black">受けられる支援</h2>
             <p className="my-5 border-l-4 border-primary pl-4 text-xl font-bold leading-8">
@@ -1060,10 +1106,10 @@ function ComparisonView({
             ? '高校生年代までの子どもがいる状態に変更します。新しく生まれる子どもの保険加入・医療費助成の例外は未確認として扱います。既にいる子どもの就学状況は引き継ぎます。'
             : '2026年4月1日以降の福岡市内の転居あり・転居先は' +
               (scenario === 'rent' ? '賃貸住宅' : '購入した住宅') +
-              'に変更します。それ以外の回答は引き継ぎます。'}
+              'に変更します。住宅ごとの確認回答はリセットし、それ以外の回答は引き継ぎます。'}
         </p>
         <p className="mt-2 text-muted-foreground">
-          比較するのは候補件数と主な条件です。第何子かによる金額や住宅ごとの要件は公式情報で確認してください。市外への引越し比較は対象外です。
+          比較するのは候補件数と主な条件です。第何子かの数え方や住宅ごとの要件は、画面上部の「条件を調べる」で確認できます。市外への引越し比較は対象外です。
         </p>
       </div>
       <div
@@ -1234,6 +1280,19 @@ export function KurashiShiftApp() {
                 type: 'string',
                 enum: householdOptions.map((option) => option.value),
               },
+              childAgeEligible: {
+                type: 'string',
+                enum: ['yes', 'no', 'unknown'],
+              },
+              schoolStage: {
+                type: 'string',
+                enum: ['elementary-middle', 'other', 'unknown'],
+              },
+              publicAssistance: {
+                type: 'string',
+                enum: ['yes', 'no', 'unknown'],
+              },
+              age70Plus: { type: 'string', enum: ['yes', 'no', 'unknown'] },
             },
             required: ['residence', 'ageBand', 'household'],
             additionalProperties: false,
@@ -1272,7 +1331,7 @@ export function KurashiShiftApp() {
       go(selected ? 'detail' : 'results', selected?.id);
     else if (effectiveRoute.page === 'comparison-detail') go('compare');
     else if (effectiveRoute.page === 'results') go('profile');
-    else go('results');
+    else go(complete(profile) ? 'results' : 'home');
   };
   return (
     <Shell
@@ -1282,6 +1341,21 @@ export function KurashiShiftApp() {
     >
       {effectiveRoute.page === 'home' && (
         <HomeView go={go} hasProfile={complete(profile)} />
+      )}
+      {effectiveRoute.page === 'guide' && (
+        <>
+          <Heading
+            eyebrow="OFFICIAL INFORMATION / GUIDE"
+            title="制度の条件を、ここで調べる。"
+          >
+            公式ページで確認するよう案内していた条件も、説明・一覧・計算ツールで確かめられます。
+          </Heading>
+          <ConditionGuide
+            key={effectiveRoute.id ?? 'all'}
+            programId={getProgram(effectiveRoute.id)?.id}
+            onOpen={(id) => go(complete(profile) ? 'questions' : 'detail', id)}
+          />
+        </>
       )}
       {effectiveRoute.page === 'profile' && (
         <ProfileView

@@ -26,12 +26,54 @@ export type Profile = {
   childAgeEligible?: YesNoUnknown;
   medicalExclusions?: YesNoUnknown;
   welfareTransport?: YesNoUnknown;
+  publicAssistance?: YesNoUnknown;
+  schoolType?:
+    | 'city'
+    | 'national-prefectural'
+    | 'private'
+    | 'other'
+    | 'unknown';
+  schoolAidBasis?:
+    | 'ended-protection'
+    | 'tax-exempt'
+    | 'full-waiver'
+    | 'day-labor-loan'
+    | 'allowance'
+    | 'income'
+    | 'none'
+    | 'unknown';
+  parentsSameBasis?: YesNoUnknown;
+  schoolIncomeWithin?: YesNoUnknown;
+  incomeDrop?: YesNoUnknown;
+  priorHousing?:
+    | 'rental-clear'
+    | 'owner-sold'
+    | 'separation'
+    | 'owner'
+    | 'arrears'
+    | 'unknown';
+  duplicateMovingAid?: YesNoUnknown;
+  municipalTaxArrears?: YesNoUnknown;
+  antisocialTies?: YesNoUnknown;
+  priorMovingGrant?: YesNoUnknown;
+  housingContract?: YesNoUnknown;
+  housingSpace?: YesNoUnknown;
+  earthquakeSafety?: YesNoUnknown;
+  hazardSafety?: YesNoUnknown;
+  maternityHandbook?: YesNoUnknown;
+  movingBenefit?: 'purchase' | 'rent' | 'costs' | 'unknown';
+  newDesignatedDistrict?: YesNoUnknown;
+  mortgageFiveYears?: YesNoUnknown;
+  rentalType?: 'private' | 'public-not-municipal' | 'municipal' | 'unknown';
+  movingPayment?: YesNoUnknown;
+  movingDeadline?: YesNoUnknown;
 };
 
 export type Criterion = {
   key: string;
   label: string;
   field?: keyof Profile;
+  guidanceId?: string;
   evaluate: (profile: Profile) => boolean | undefined;
 };
 

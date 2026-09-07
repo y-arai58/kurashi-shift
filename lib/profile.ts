@@ -25,12 +25,12 @@ export const householdOptions = [
   {
     value: 'with-children',
     label: '子どもを養育している',
-    note: '子どもの年齢は後で確認',
+    note: '続けて対象年齢・就学状況を確認',
   },
   {
     value: 'single-parent',
     label: 'ひとり親で子どもを養育',
-    note: '子どもの年齢は後で確認',
+    note: '続けて対象年齢・就学状況を確認',
   },
   {
     value: 'expecting',
@@ -58,6 +58,13 @@ export function updateProfile(
       'medicalExclusions',
       'schoolStage',
       'schoolAidEligibility',
+      'schoolType',
+      'schoolAidBasis',
+      'parentsSameBasis',
+      'schoolIncomeWithin',
+      'incomeDrop',
+      'housingSpace',
+      'maternityHandbook',
     ] as const)
       delete next[field];
   }
@@ -71,14 +78,49 @@ export function updateProfile(
     delete next.medicalExclusions;
     delete next.schoolStage;
     delete next.schoolAidEligibility;
+    delete next.schoolType;
+    delete next.schoolAidBasis;
+    delete next.schoolIncomeWithin;
+    delete next.parentsSameBasis;
+    delete next.incomeDrop;
   }
-  if (patch.schoolStage && patch.schoolStage !== 'elementary-middle')
+  if (patch.schoolStage && patch.schoolStage !== 'elementary-middle') {
     delete next.schoolAidEligibility;
+    delete next.schoolType;
+    delete next.schoolAidBasis;
+    delete next.parentsSameBasis;
+    delete next.schoolIncomeWithin;
+    delete next.incomeDrop;
+  }
+  if (patch.schoolAidBasis && patch.schoolAidBasis !== profile.schoolAidBasis) {
+    delete next.parentsSameBasis;
+    delete next.schoolIncomeWithin;
+    delete next.incomeDrop;
+  }
+  if (patch.movingBenefit && patch.movingBenefit !== profile.movingBenefit) {
+    delete next.newDesignatedDistrict;
+    delete next.mortgageFiveYears;
+    delete next.movingPayment;
+  }
+  if (patch.housingPlan && patch.housingPlan !== profile.housingPlan) {
+    for (const field of dwellingFields) delete next[field];
+  }
   if (patch.moveWithinCity === 'no') delete next.housingPlan;
   return next;
 }
 
 export type Scenario = 'baby' | 'rent' | 'buy';
+const dwellingFields = [
+  'housingContract',
+  'housingSpace',
+  'earthquakeSafety',
+  'hazardSafety',
+  'newDesignatedDistrict',
+  'mortgageFiveYears',
+  'rentalType',
+  'movingPayment',
+  'movingDeadline',
+] as const;
 export const scenarios: { id: Scenario; label: string; note: string }[] = [
   { id: 'baby', label: '子どもが生まれたら', note: '子どもが1人増えた場合' },
   { id: 'rent', label: '市内で賃貸に引越したら', note: '福岡市内での住み替え' },
@@ -95,16 +137,22 @@ export function scenarioProfile(profile: Profile, scenario: Scenario): Profile {
       childAgeEligible: 'yes',
       childHealthInsurance: undefined,
       medicalExclusions: undefined,
+      housingSpace: undefined,
+      schoolIncomeWithin: undefined,
+      parentsSameBasis: undefined,
       schoolStage: hasChildren(profile) ? profile.schoolStage : 'other',
       schoolAidEligibility: hasChildren(profile)
         ? profile.schoolAidEligibility
         : undefined,
     };
-  return {
+  const next: Profile = {
     ...profile,
     moveWithinCity: 'yes',
     housingPlan: scenario === 'rent' ? 'renting' : 'buying',
+    movingBenefit: scenario === 'rent' ? 'rent' : 'purchase',
   };
+  for (const field of dwellingFields) delete next[field];
+  return next;
 }
 
 export function parseBasicProfile(input: unknown): Profile {
@@ -113,16 +161,48 @@ export function parseBasicProfile(input: unknown): Profile {
   const value = input as Record<string, unknown>;
   if (
     Object.keys(value).some(
-      (key) => !['residence', 'ageBand', 'household'].includes(key),
+      (key) =>
+        ![
+          'residence',
+          'ageBand',
+          'household',
+          'childAgeEligible',
+          'schoolStage',
+          'publicAssistance',
+          'age70Plus',
+        ].includes(key),
     ) ||
     !residenceOptions.some((option) => option.value === value.residence) ||
     !ageOptions.some((option) => option.value === value.ageBand) ||
     !householdOptions.some((option) => option.value === value.household)
   )
     throw new Error('居住地・年齢・世帯の選択肢を確認してください。');
+  for (const field of [
+    'childAgeEligible',
+    'publicAssistance',
+    'age70Plus',
+  ] as const) {
+    if (
+      value[field] !== undefined &&
+      !['yes', 'no', 'unknown'].some((option) => option === value[field])
+    )
+      throw new Error('基本情報の追加回答を確認してください。');
+  }
+  if (
+    value.schoolStage !== undefined &&
+    !['elementary-middle', 'other', 'unknown'].some(
+      (option) => option === value.schoolStage,
+    )
+  )
+    throw new Error('就学状況を確認してください。');
   return {
     residence: value.residence as Profile['residence'],
     ageBand: value.ageBand as Profile['ageBand'],
     household: value.household as Profile['household'],
+    ...Object.fromEntries(
+      ['childAgeEligible', 'schoolStage', 'publicAssistance', 'age70Plus']
+        .filter((field) => value[field] !== undefined)
+        .map((field) => [field, value[field]]),
+    ),
   };
 }

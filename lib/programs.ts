@@ -1,4 +1,5 @@
 import type { Profile, SupportProgram, YesNoUnknown } from './domain.ts';
+import { assistanceRule, movingRules, schoolRules } from './detailed-rules.ts';
 
 const hasEligibleChild = (household?: string) =>
   household === undefined
@@ -31,6 +32,7 @@ export const supportPrograms: SupportProgram[] = [
     summary:
       '福岡市内に住み、健康保険に加入している高校生世代までの子どもの保険診療分を助成する制度です。3歳未満の通院と、高校生世代までの入院・薬局は自己負担がありません。',
     criteria: [
+      { ...assistanceRule, guidanceId: 'medical-details' },
       {
         key: 'city',
         label: '福岡市に住んでいる',
@@ -54,7 +56,8 @@ export const supportPrograms: SupportProgram[] = [
       {
         key: 'exclusions',
         field: 'medicalExclusions',
-        label: '生活保護や優先される医療費助成の対象ではない',
+        label: '優先される他の医療費助成の対象ではない',
+        guidanceId: 'medical-details',
         evaluate: (p) =>
           answer(p.medicalExclusions) === undefined
             ? undefined
@@ -101,7 +104,7 @@ export const supportPrograms: SupportProgram[] = [
       },
     ],
     points: [
-      '対象年齢は18歳到達後の最初の3月31日まで。個別の養育状況・申請先などは公式情報で確認してください',
+      '対象年齢は18歳到達後の最初の3月31日まで。申請先・別居時の書類・第3子の数え方は、このページ内の条件ガイドで調べられます',
       '3歳未満の第1子・第2子は月15,000円です',
       '3歳〜高校生年代の第1子・第2子は月10,000円です',
       '第3子以降は年齢を問わず月30,000円です',
@@ -158,12 +161,7 @@ export const supportPrograms: SupportProgram[] = [
             ? undefined
             : ['renting', 'buying'].includes(p.housingPlan),
       },
-      {
-        key: 'housing-rules',
-        label:
-          '世帯・住宅の面積や耐震性・校区・過去の受給歴などの要件を公式窓口で確認',
-        evaluate: () => undefined,
-      },
+      ...movingRules,
     ],
     points: [
       '住宅取得は年20万円を最長5年、家賃は年10万円を最長5年助成します',
@@ -211,22 +209,7 @@ export const supportPrograms: SupportProgram[] = [
               ? undefined
               : p.schoolStage === 'elementary-middle',
       },
-      {
-        key: 'income',
-        field: 'schoolAidEligibility',
-        label: '非課税・児童扶養手当受給・所得基準などの要件に該当する',
-        evaluate: (p) =>
-          !p.schoolAidEligibility || p.schoolAidEligibility === 'unknown'
-            ? undefined
-            : p.schoolAidEligibility === 'likely'
-              ? true
-              : undefined,
-      },
-      {
-        key: 'school-rules',
-        label: '対象となる学校種別・保護者双方の要件・生活保護の扱いを確認',
-        evaluate: () => undefined,
-      },
+      ...schoolRules,
     ],
     points: [
       '2026年8月以降の申請は申請月分から認定・支給されます',
