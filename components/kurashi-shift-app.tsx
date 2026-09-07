@@ -1187,7 +1187,10 @@ export function KurashiShiftApp() {
       route.page,
     )
       ? { page: 'profile' }
-      : route;
+      : profile.residence !== 'fukuoka' &&
+          ['compare', 'comparison-detail'].includes(route.page)
+        ? { page: 'results' }
+        : route;
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       document.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
